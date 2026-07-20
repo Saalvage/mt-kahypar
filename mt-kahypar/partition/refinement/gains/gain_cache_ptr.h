@@ -64,6 +64,10 @@ class GainCachePtr {
     switch(gain_cache.type) {
       case GainPolicy::cut:
         return function(cast<CutGainCache>(gain_cache));
+      case GainPolicy::bottleneck:
+        return function(cast<BottleneckGainTypes::GainCache>(gain_cache));
+      case GainPolicy::l2:
+        return function(cast<L2GainTypes::GainCache>(gain_cache));
       case GainPolicy::km1:
         return function(cast<Km1GainCache>(gain_cache));
       case GainPolicy::soed:
@@ -107,6 +111,10 @@ class GainCachePtr {
       switch(gain_cache.type) {
         case GainPolicy::cut:
           return function(cast<CutGainCache>(gain_cache));
+        case GainPolicy::bottleneck:
+          return function(cast<BottleneckGainTypes::GainCache>(gain_cache));
+        case GainPolicy::l2:
+          return function(cast<L2GainTypes::GainCache>(gain_cache));
         case GainPolicy::km1:
           return function(cast<Km1GainCache>(gain_cache));
         #ifdef KAHYPAR_ENABLE_SOED_METRIC
@@ -126,6 +134,8 @@ class GainCachePtr {
   static gain_cache_t constructGainCache(const Context& context) {
     switch(context.partition.gain_policy) {
       case GainPolicy::cut: return constructGainCache<CutGainCache>(context);
+      case GainPolicy::bottleneck: return constructGainCache<BottleneckGainTypes::GainCache>(context);
+      case GainPolicy::l2: return constructGainCache<L2GainTypes::GainCache>(context);
       case GainPolicy::km1: return constructGainCache<Km1GainCache>(context);
       #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: return constructGainCache<SoedGainCache>(context);

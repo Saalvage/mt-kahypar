@@ -26,48 +26,22 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 
 namespace mt_kahypar {
 
-
-struct BipartitioningPolicy {
-  static bool useCutNetSplitting(const GainPolicy policy) {
-    switch(policy) {
-      case GainPolicy::cut: return false;
-      case GainPolicy::bottleneck: return true;
-      case GainPolicy::l2: return true;
-      case GainPolicy::km1: return true;
-      case GainPolicy::soed: return true;
-      case GainPolicy::steiner_tree: return true;
-      case GainPolicy::cut_for_graphs: return false;
-      case GainPolicy::steiner_tree_for_graphs: return false;
-      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
-    }
-    throw InvalidParameterException("Gain policy is unknown");
-    return false;
-  }
-
-  static HyperedgeWeight nonCutEdgeMultiplier(const GainPolicy policy) {
-    switch(policy) {
-      case GainPolicy::cut: return 1;
-      case GainPolicy::bottleneck: return 1;
-      case GainPolicy::l2: return 1;
-      case GainPolicy::km1: return 1;
-      case GainPolicy::soed: return 2;
-      case GainPolicy::steiner_tree: return 1;
-      case GainPolicy::cut_for_graphs: return 1;
-      case GainPolicy::steiner_tree_for_graphs: return 1;
-      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
-    }
-    throw InvalidParameterException("Gain policy is unknown");
-    return 0;
+/**
+ * After moving a node, we perform a synchronized update of the pin count values
+ * for each incident hyperedge of the node based on which we then compute an
+ * attributed gain value.
+ */
+struct L2AttributedGains {
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
+    return sync_update.edge_size > 1 ?
+      ( sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1) * sync_update.edge_weight -
+      ( sync_update.pin_count_in_to_part_after == sync_update.edge_size ) * sync_update.edge_weight : 0;
   }
 };
-
 
 }  // namespace mt_kahypar

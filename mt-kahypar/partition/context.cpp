@@ -604,6 +604,8 @@ namespace mt_kahypar {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::bottleneck: partition.gain_policy = GainPolicy::bottleneck; break;
+        case Objective::l2: partition.gain_policy = GainPolicy::l2; break;
         case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
         case Objective::steiner_tree: partition.gain_policy = GainPolicy::steiner_tree; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;

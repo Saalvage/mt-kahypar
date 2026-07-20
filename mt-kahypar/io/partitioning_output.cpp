@@ -432,6 +432,12 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }
+    if ( context.partition.objective != Objective::bottleneck ) {
+      printKeyValue(Objective::bottleneck, metrics::quality(hypergraph, Objective::bottleneck));
+    }
+    if ( context.partition.objective != Objective::l2 ) {
+      printKeyValue(Objective::l2, metrics::quality(hypergraph, Objective::l2));
+    }
     if ( context.partition.objective != Objective::km1 && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::km1, metrics::quality(hypergraph, Objective::km1));
     }
