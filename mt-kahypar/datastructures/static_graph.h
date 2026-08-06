@@ -424,7 +424,7 @@ class StaticGraph {
     Array<Node> tmp_nodes;
     Array<HyperedgeID> node_sizes;
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
+    Array<parallel::AtomicWrapper<HypernodeWeight>> node_weights;
     Array<TmpEdgeInformation> tmp_edges;
     Array<HyperedgeID> edge_id_mapping;
   };

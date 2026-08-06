@@ -76,7 +76,7 @@ class MultilevelCoarsener : public ICoarsener,
 
   #define STATE(X) static_cast<uint8_t>(X)
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = parallel::AtomicWrapper<HypernodeWeight>;
   using AtomicID = parallel::IntegralAtomicWrapper<HypernodeID>;
 
   static constexpr bool debug = false;
@@ -159,7 +159,7 @@ class MultilevelCoarsener : public ICoarsener,
       _matching_partner[hn].store(hn, std::memory_order_relaxed);
       cluster_ids[hn] = hn;
       if ( current_hg.nodeIsEnabled(hn) ) {
-        _cluster_weight[hn] = current_hg.nodeWeight(hn);
+        _cluster_weight[hn].store(current_hg.nodeWeight(hn));
       }
     });
 

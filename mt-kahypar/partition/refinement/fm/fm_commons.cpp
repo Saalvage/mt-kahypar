@@ -216,7 +216,7 @@ namespace mt_kahypar {
           while (it < map.end() && keyToPair(it->key).first == block) {
             BucketID current_rank = keyToPair(it->key).second;
             if (current_rank < upper_limit) {
-              __atomic_fetch_add(&fallback_bucket_weights[block][current_rank], it->value, __ATOMIC_RELAXED);
+              std::atomic_ref{fallback_bucket_weights[block][current_rank]}.fetch_add(it->value, std::memory_order_relaxed);
             }
             ++it;
           }

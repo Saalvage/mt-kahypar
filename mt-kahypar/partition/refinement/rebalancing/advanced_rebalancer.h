@@ -124,7 +124,7 @@ private:
 
   void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 
-  void findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph, int64_t& attributed_gain, size_t& global_move_id);
+  void findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph, Gain& attributed_gain, size_t& global_move_id);
 
   const Context& _context;
   GainCache& _gain_cache;

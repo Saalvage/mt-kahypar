@@ -375,7 +375,7 @@ class StaticHypergraph {
     Array<Hypernode> tmp_hypernodes;
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+    Array<parallel::AtomicWrapper<HypernodeWeight>> hn_weights;
     Array<Hyperedge> tmp_hyperedges;
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;

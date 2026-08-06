@@ -73,7 +73,7 @@ namespace mt_kahypar::ds {
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
             _tmp_contraction_buffer->tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
+    Array<parallel::AtomicWrapper<HypernodeWeight>>& hn_weights =
             _tmp_contraction_buffer->hn_weights;
     Array<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
@@ -115,7 +115,7 @@ namespace mt_kahypar::ds {
 
       // Reset tmp contraction buffer
       if ( hn < num_hypernodes ) {
-        hn_weights[hn] = 0;
+        hn_weights[hn].store(0);
         tmp_hypernodes[hn] = Hypernode(true);
         tmp_num_incident_nets[hn] = 0;
       }

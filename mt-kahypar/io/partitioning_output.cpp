@@ -452,7 +452,7 @@ namespace mt_kahypar::io {
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
   }
 
-  using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+  using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
   using MCol = std::vector<MCell>;
 
   void printMatrix(const std::vector<MCol>& matrix, PartitionID k) {
@@ -487,7 +487,7 @@ namespace mt_kahypar::io {
   void printCutMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
-    using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+    using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
     using MCol = std::vector<MCell>;
     std::vector<MCol> cut_matrix(k, MCol(k, MCell(0)));
 
@@ -517,7 +517,7 @@ namespace mt_kahypar::io {
   void printPotentialPositiveGainMoveMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
-    using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+    using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
     using MCol = std::vector<MCell>;
     std::vector<MCol> positive_gains(k, MCol(k, MCell(0)));
 
