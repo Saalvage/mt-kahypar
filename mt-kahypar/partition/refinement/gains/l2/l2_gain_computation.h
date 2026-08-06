@@ -68,19 +68,41 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
       PartitionID connectivity = phg.connectivity(he);
       HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
       HyperedgeWeight weight = phg.edgeWeight(he);
-      if (connectivity == 1 && phg.edgeSize(he) > 1) {
+      HypernodeID edge_size = phg.edgeSize(he);
+      if (connectivity == 1 && edge_size > 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
-        isolated_block_gain += weight;
-      } else if (connectivity == 2 && pin_count_in_from_part == 1) {
+        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(from);
+        HyperedgeWeight part_sum_weight_after = part_sum_weight + weight;
+        isolated_block_gain += part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
+      } else if (pin_count_in_from_part == 1) {
+        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(from);
+        HyperedgeWeight part_sum_weight_after = part_sum_weight - weight;
+        HyperedgeWeight score_gain = part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
         for (const PartitionID& to : phg.connectivitySet(he)) {
           // In case there are only two blocks contained in the current
           // hyperedge and only one pin left in the from part of the hyperedge,
           // we would make the current hyperedge a non-cut hyperedge when moving
           // vertex hn to the other block.
           if (from != to) {
-            tmp_scores[to] += weight;
+            tmp_scores[to] -= score_gain;
+
+            // Moving to this block would make it a non-cut hyperedge.
+            if (phg.pinCountInPart(he, to) == edge_size - 1) {
+              HyperedgeWeight part_sum_weight_to = phg.partSumCutEdgeWeight(to);
+              HyperedgeWeight part_sum_weight_to_after = part_sum_weight_to - weight;
+              tmp_scores[to] -= part_sum_weight_to_after * part_sum_weight_to_after - part_sum_weight_to * part_sum_weight_to;
+            }
           }
+        }
+      }
+
+      // TODO: Possibly optimize.
+      for (const PartitionID& to : phg.connectivitySet(he)) {
+        if (from != to && phg.pinCountInPart(he, to) == 0) {
+          HyperedgeWeight part_sum_weight_to = phg.partSumCutEdgeWeight(to);
+          HyperedgeWeight part_sum_weight_to_after = part_sum_weight_to + weight;
+          tmp_scores[to] -= part_sum_weight_to_after * part_sum_weight_to_after - part_sum_weight_to * part_sum_weight_to;
         }
       }
     }
@@ -95,7 +117,9 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
       if (connectivity == 1 && phg.edgeSize(he) > 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
-        isolated_block_gain += phg.edgeWeight(he);
+        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(phg.partID(hn));
+        HyperedgeWeight part_sum_weight_after = part_sum_weight - phg.edgeWeight(he);
+        isolated_block_gain += part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
       }
     }
     return isolated_block_gain;

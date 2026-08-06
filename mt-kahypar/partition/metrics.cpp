@@ -113,7 +113,7 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
   }
 };
 
-// Computing per-edge contributions for these objectives is not easily possible.
+// Computing per-edge contributions for these objectives is not feasible.
 template<typename PartitionedHypergraph>
 struct ObjectiveFunction<PartitionedHypergraph, Objective::bottleneck> {
   static_assert(false);
@@ -156,7 +156,7 @@ auto compute_per_part_cut_parallel(const PartitionedHypergraph& phg, F&& func) {
   phg.doParallelForAllEdges([&phg, &accumulator](HyperedgeID he) {
     if (phg.connectivity(he) > 1) {
       for (const PartitionID part : phg.connectivitySet(he)) {
-        std::atomic_ref{accumulator[static_cast<std::size_t>(part)]}.fetch_add(phg.edgeWeight(he));
+        std::atomic_ref{accumulator[static_cast<std::size_t>(part)]}.fetch_add(phg.edgeWeight(he), std::memory_order_relaxed);
       }
     }
   });
@@ -175,7 +175,20 @@ HyperedgeWeight compute_objective_parallel_bottleneck(const PartitionedHypergrap
 template<typename PartitionedHypergraph>
 HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) {
   return compute_per_part_cut_parallel(phg,
-  [](const std::vector<HyperedgeWeight>& accumulator) {
+  [&](const std::vector<HyperedgeWeight>& accumulator) {
+    std::cout << "METRIC ACTUAL" << std::endl;
+    for (const auto& value : accumulator) {
+      std::cout << value << " ";
+    }
+    if constexpr (requires {
+      phg.partSumCutEdgeWeight(2);
+    }) {
+      std::cout << std::endl << "METRIC STORED" << std::endl;
+      for (int i = 0; i < phg.k(); ++i) {
+        std::cout << phg.partSumCutEdgeWeight(i) << " ";
+      }
+    }
+    std::cout << std::endl;
     auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return value * value; });
     return std::accumulate(range.begin(), range.end(), HyperedgeWeight{0}, std::plus{});
   });

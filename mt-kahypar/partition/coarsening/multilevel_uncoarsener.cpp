@@ -157,6 +157,10 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::refineImpl() {
     PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
+    if constexpr(requires{ partitioned_hypergraph.initializeBlockMetricContributions(); }) {
+      partitioned_hypergraph.initializeBlockMetricContributions();
+    }
+
     double time_limit = std::numeric_limits<double>::max();
     if (_current_level >= 0 && _current_level != _num_levels) {
       // there is a refinement run on the coarsest graph before projection. There is no value stored for this run, so we must avoid looking it up.
@@ -177,11 +181,14 @@ namespace mt_kahypar {
     if ( _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _rebalancer->initialize(phg);
     }
+
+    std::cout << "BEFORE REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
     if ( !metrics::isValidPartition(partitioned_hypergraph, _context) && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _timer.start_timer("rebalance", "Rebalance");
       _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
       _timer.stop_timer("rebalance");
     }
+    std::cout << "AFTER REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
 
     bool improvement_found = true;
     while( improvement_found ) {

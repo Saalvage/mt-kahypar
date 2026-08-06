@@ -49,6 +49,7 @@ struct SynchronizedEdgeUpdate {
   ds::PinCountSnapshot* pin_counts_after = nullptr;
   const TargetGraph* target_graph = nullptr;
   ds::Array<SpinLock>* edge_locks = nullptr;
+  vec<CAtomic<HyperedgeWeight>>* edge_weight_sum_per_partition = nullptr;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPart(PartitionID part) {
