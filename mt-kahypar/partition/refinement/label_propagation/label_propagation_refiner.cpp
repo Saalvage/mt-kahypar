@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/utils/approx_equal.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -111,14 +112,14 @@ namespace mt_kahypar {
     labelPropagation(hypergraph, best_metrics);
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    ASSERT(best_metrics.quality == metrics::quality(hypergraph, _context,
-        !_context.refinement.label_propagation.execute_sequential),
+    ASSERT((ApproxEqual{best_metrics.quality, metrics::quality(hypergraph, _context,
+        !_context.refinement.label_propagation.execute_sequential)}),
       V(best_metrics.quality) << V(metrics::quality(hypergraph, _context,
           !_context.refinement.label_propagation.execute_sequential)));
 
     // Update metrics statistics
     Gain delta = old_quality - best_metrics.quality;
-    ASSERT(delta >= 0, "LP refiner worsen solution quality");
+    ASSERT(delta >= 0, "LP refiner worsen solution quality" << V(delta));
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", delta);
     return delta > 0;
   }

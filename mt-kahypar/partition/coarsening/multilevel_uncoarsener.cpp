@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/approx_equal.h"
 
 namespace mt_kahypar {
 
@@ -112,7 +113,7 @@ namespace mt_kahypar {
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
     }
 
-    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+    ASSERT((ApproxEqual{metrics::quality(*_uncoarseningData.partitioned_hg, _context), _current_metrics.quality}),
       V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
 
     --_current_level;
@@ -236,7 +237,7 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
+        ASSERT((ApproxEqual{_current_metrics.quality, metrics::quality(partitioned_hypergraph, _context)}),
           "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
           "does not match the metric updated by the refiners" << V(_current_metrics.quality));
       }
