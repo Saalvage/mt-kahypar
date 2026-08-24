@@ -336,7 +336,7 @@ endif()
 #################################################################
 
 include(FetchContent)
-set(KAHYPAR_SHARED_RESOURCES_TAG 2678e1f5f489eebc5b89e375eecb5cc746b53a33)
+set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
 set(KAHYPAR_WHFC_TAG             51b27ff2c27a4794bfbaa4e8189d38159d249312)
 set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
@@ -358,7 +358,7 @@ target_link_libraries(MtKaHyPar-Include INTERFACE CLI11::CLI11)
 
 FetchContent_Populate(
   kahypar-shared-resources QUIET EXLUDE_FROM_ALL
-  GIT_REPOSITORY https://github.com/Saalvage/kahypar-shared-resources.git
+  GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
   GIT_TAG        ${KAHYPAR_SHARED_RESOURCES_TAG}
   SOURCE_DIR     external_tools/kahypar-shared-resources
 )
