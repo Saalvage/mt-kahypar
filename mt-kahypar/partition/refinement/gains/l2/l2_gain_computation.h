@@ -51,11 +51,8 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
                      bool disable_randomization = false) :
     Base(context, disable_randomization) { }
 
-  // ! Precomputes the gain to all adjacent blocks.
-  // ! Conceptually, we compute the gain of moving the node to an non-adjacent block
-  // ! and the gain to all adjacent blocks assuming the node is in an isolated block.
-  // ! The gain of that node to a block to can then be computed by
-  // ! 'isolated_block_gain - tmp_scores[to]' (see gain(...))
+  // The concept of first computing an isolated block gain does not work for the L2 metric, as the isolated block would
+  // contribute a new addend to the total metric which is never equal to a move to a non-empty block.
   template<typename PartitionedHypergraph>
   void precomputeGains(const PartitionedHypergraph& phg,
                        const HypernodeID hn,
@@ -111,23 +108,30 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
   // ! Computes only the gain (cut increase) for moving out of the current block.
   template<typename PartitionedHypergraph>
   static Gain computeIsolatedBlockGain(const PartitionedHypergraph& phg, const HypernodeID hn) {
-    Gain isolated_block_gain = 0;
+    Gain isolated_block_sum_cut_edge_weight = 0;
+    Gain existing_block_initial_sum_cut_edge_weight = phg.partSumCutEdgeWeight(phg.partID(hn));
+    Gain existing_block_sum_cut_edge_weight = existing_block_initial_sum_cut_edge_weight;
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+      if (phg.edgeSize(he) == 1) continue;
+
+      auto weight = phg.edgeWeight(he);
+      isolated_block_sum_cut_edge_weight += weight;
+
       PartitionID connectivity = phg.connectivity(he);
-      if (connectivity == 1 && phg.edgeSize(he) > 1) {
+      if (connectivity == 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
-        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(phg.partID(hn));
-        HyperedgeWeight part_sum_weight_after = part_sum_weight - phg.edgeWeight(he);
-        isolated_block_gain += part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
+        existing_block_sum_cut_edge_weight += phg.edgeWeight(he);
       }
     }
-    return isolated_block_gain;
+    Gain existing_block_contribution = existing_block_sum_cut_edge_weight * existing_block_sum_cut_edge_weight
+      - existing_block_initial_sum_cut_edge_weight * existing_block_initial_sum_cut_edge_weight;
+    return existing_block_contribution + isolated_block_sum_cut_edge_weight * isolated_block_sum_cut_edge_weight;
   }
 
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {
-    return isolated_block_gain - to_score;
+    return -to_score;
   }
 
   void changeNumberOfBlocksImpl(const PartitionID) {
