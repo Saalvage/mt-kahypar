@@ -83,7 +83,7 @@ class MultilevelVertexPairRater {
     LARGE_RATING_MAP
   };
 
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = parallel::AtomicWrapper<HypernodeWeight>;
 
  public:
   using Rating = VertexPairRating;

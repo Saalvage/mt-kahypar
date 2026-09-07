@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/approx_equal.h"
 
 namespace mt_kahypar {
 
@@ -112,7 +113,7 @@ namespace mt_kahypar {
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
     }
 
-    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+    ASSERT((ApproxEqual{metrics::quality(*_uncoarseningData.partitioned_hg, _context), _current_metrics.quality}),
       V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
 
     --_current_level;
@@ -157,6 +158,10 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::refineImpl() {
     PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
+    if constexpr(requires{ partitioned_hypergraph.initializeBlockMetricContributions(); }) {
+      partitioned_hypergraph.initializeBlockMetricContributions();
+    }
+
     double time_limit = std::numeric_limits<double>::max();
     if (_current_level >= 0 && _current_level != _num_levels) {
       // there is a refinement run on the coarsest graph before projection. There is no value stored for this run, so we must avoid looking it up.
@@ -177,11 +182,14 @@ namespace mt_kahypar {
     if ( _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _rebalancer->initialize(phg);
     }
+
+    std::cout << "BEFORE REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
     if ( !metrics::isValidPartition(partitioned_hypergraph, _context) && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _timer.start_timer("rebalance", "Rebalance");
       _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
       _timer.stop_timer("rebalance");
     }
+    std::cout << "AFTER REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
 
     bool improvement_found = true;
     while( improvement_found ) {
@@ -229,7 +237,7 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
+        ASSERT((ApproxEqual{_current_metrics.quality, metrics::quality(partitioned_hypergraph, _context)}),
           "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
           "does not match the metric updated by the refiners" << V(_current_metrics.quality));
       }

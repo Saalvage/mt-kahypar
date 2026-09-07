@@ -30,6 +30,7 @@
 #include <atomic>
 #include <type_traits>
 #include <mutex>
+#include <kahypar-resources/definitions.h>
 
 #include <tbb/parallel_invoke.h>
 
@@ -161,6 +162,8 @@ class PartitionedHypergraph {
       _con_info.reset();
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      _part_metric_contribution.clear();
     });
   }
 
@@ -615,6 +618,7 @@ class PartitionedHypergraph {
       sync_update.to = to;
       sync_update.target_graph = _target_graph;
       sync_update.edge_locks = &_pin_count_update_ownership;
+      sync_update.edge_weight_sum_per_partition = &_part_metric_contribution;
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
       }
@@ -706,6 +710,14 @@ class PartitionedHypergraph {
     return _part_weights[p].load(std::memory_order_relaxed);
   }
 
+  // ! Sum of all cut edges of a block
+  HyperedgeWeight partSumCutEdgeWeight(const PartitionID p) const {
+    ASSERT(p != kInvalidPartition && p < _k);
+    //ASSERT(!_part_metric_contribution.empty());
+    if (_part_metric_contribution.empty()) return -1;
+    return _part_metric_contribution[p].load(std::memory_order_relaxed);
+  }
+
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
@@ -776,6 +788,7 @@ class PartitionedHypergraph {
     sync_update.edge_locks = &_pin_count_update_ownership;
     sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
     sync_update.pin_counts_after = &_con_info.pinCountSnapshot(he);
+    sync_update.edge_weight_sum_per_partition = &_part_metric_contribution;
     return sync_update;
   }
 
@@ -785,7 +798,8 @@ class PartitionedHypergraph {
   void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
-            [&] { initializePinCountInPart(); }
+            [&] { initializePinCountInPart(); },
+            [&] { initializeBlockMetricContributions(); }
     );
   }
 
@@ -793,6 +807,7 @@ class PartitionedHypergraph {
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    _part_metric_contribution.clear();
 
     // Reset pin count in part and connectivity set
     _con_info.reset(false);
@@ -1174,6 +1189,32 @@ class PartitionedHypergraph {
     _k = 0;
   }
 
+  void initializeBlockMetricContributions() {
+    std::unique_lock lk{_blockMetricContributionInitializationLock.mutex};
+
+    _part_metric_contribution.clear();
+    _part_metric_contribution.resize(_k);
+    for (HyperedgeID he = 0; he < initialNumEdges(); ++he) {
+      if (edgeIsEnabled(he) && connectivity(he) > 1) {
+        for (const PartitionID part : connectivitySet(he)) {
+          _part_metric_contribution[static_cast<std::size_t>(part)].fetch_add(edgeWeight(he), std::memory_order_relaxed);
+        }
+      }
+    }
+    /*std::cout << "COMPUTED" << std::endl;
+    for (PartitionID p = 0; p < _k; ++p) {
+      std::cout << _part_metric_contribution[p].load(std::memory_order_relaxed) << " ";
+    }
+    std::cout << std::endl;*/
+    /*doParallelForAllEdges([this](HyperedgeID he) {
+      if (connectivity(he) > 1) {
+        for (const PartitionID part : connectivitySet(he)) {
+          _part_metric_contribution[static_cast<std::size_t>(part)].fetch_add(edgeWeight(he), std::memory_order_relaxed);
+        }
+      }
+    });*/
+  }
+
  private:
   void applyPartWeightUpdates(vec<HypernodeWeight>& part_weight_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
@@ -1299,6 +1340,19 @@ class PartitionedHypergraph {
 
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > _part_weights;
+
+  struct MutexWrapper {
+    std::mutex mutex;
+
+    MutexWrapper() { }
+
+    MutexWrapper(const MutexWrapper&) { }
+    MutexWrapper(MutexWrapper&&) { }
+
+    MutexWrapper& operator=(const MutexWrapper&) { return *this; }
+    MutexWrapper& operator=(MutexWrapper&&) { return *this; }
+  } _blockMetricContributionInitializationLock;
+  vec< CAtomic<HyperedgeWeight> > _part_metric_contribution;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;

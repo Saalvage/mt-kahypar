@@ -68,7 +68,7 @@ class StaticHypergraph {
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
-  using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicHypernodeWeight = parallel::AtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
@@ -375,7 +375,7 @@ class StaticHypergraph {
     Array<Hypernode> tmp_hypernodes;
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+    Array<parallel::AtomicWrapper<HypernodeWeight>> hn_weights;
     Array<Hyperedge> tmp_hyperedges;
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;

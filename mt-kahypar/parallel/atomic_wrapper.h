@@ -36,9 +36,9 @@
 #include "mt-kahypar/macros.h"
 
 template<typename T>
-class CAtomic : public std::__atomic_base<T> {
+class CAtomic : public std::atomic<T> {
 public:
-  using Base = std::__atomic_base<T>;
+  using Base = std::atomic<T>;
 
   explicit CAtomic(const T value = T()) : Base(value) { }
 

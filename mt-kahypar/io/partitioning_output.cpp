@@ -432,6 +432,12 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }
+    if ( context.partition.objective != Objective::bottleneck ) {
+      printKeyValue(Objective::bottleneck, metrics::quality(hypergraph, Objective::bottleneck));
+    }
+    if ( context.partition.objective != Objective::l2 ) {
+      printKeyValue(Objective::l2, metrics::quality(hypergraph, Objective::l2));
+    }
     if ( context.partition.objective != Objective::km1 && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::km1, metrics::quality(hypergraph, Objective::km1));
     }
@@ -446,7 +452,7 @@ namespace mt_kahypar::io {
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
   }
 
-  using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+  using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
   using MCol = std::vector<MCell>;
 
   void printMatrix(const std::vector<MCol>& matrix, PartitionID k) {
@@ -481,7 +487,7 @@ namespace mt_kahypar::io {
   void printCutMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
-    using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+    using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
     using MCol = std::vector<MCell>;
     std::vector<MCol> cut_matrix(k, MCol(k, MCell(0)));
 
@@ -511,7 +517,7 @@ namespace mt_kahypar::io {
   void printPotentialPositiveGainMoveMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
-    using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+    using MCell = parallel::AtomicWrapper<HyperedgeWeight>;
     using MCol = std::vector<MCell>;
     std::vector<MCol> positive_gains(k, MCol(k, MCell(0)));
 

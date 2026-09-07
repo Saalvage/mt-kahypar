@@ -43,7 +43,7 @@ class ConcurrentClusteringData {
   };
 
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = parallel::AtomicWrapper<HypernodeWeight>;
   using AtomicID = parallel::IntegralAtomicWrapper<HypernodeID>;
 
  public:

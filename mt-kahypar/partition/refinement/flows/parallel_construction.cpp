@@ -239,7 +239,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
       tmp_pins.clear();
       size_t he_hash = 0;
       if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
-        __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
+        std::atomic_ref{flow_problem.total_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
       }
       for ( const HypernodeID& pin : phg.pins(he) ) {
         whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
@@ -256,7 +256,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
       if ( connected_to_source_and_sink ) {
         // Hyperedge is connected to source and sink which means we can not remove it
         // from the cut with the current flow problem => remove he from flow problem
-        __atomic_fetch_add(&flow_problem.non_removable_cut, parameters.capacity, __ATOMIC_RELAXED);
+        std::atomic_ref{flow_problem.non_removable_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
       } else if ( !tmp_pins.empty() ) {
         if ( parameters.connect_to_source ) {
           push_into_tmp_pins(tmp_pins, flow_problem.source, he_hash, true);
@@ -370,7 +370,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
     tmp_pins.clear();
     tmp_pins.reserve(phg.edgeSize(he));
     if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
-      __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
+      std::atomic_ref{flow_problem.total_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
     }
     for (const HypernodeID& pin : phg.pins(he)) {
       whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
@@ -387,7 +387,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
     if (connected_to_source_and_sink) {
       // Hyperedge is connected to source and sink which means we can not remove it
       // from the cut with the current flow problem => remove he from flow problem
-      __atomic_fetch_add(&flow_problem.non_removable_cut, tmp_hyperedges[i].weight, __ATOMIC_RELAXED);
+      std::atomic_ref{flow_problem.non_removable_cut}.fetch_add(tmp_hyperedges[i].weight, std::memory_order_relaxed);
     } else if (!tmp_pins.empty()) {
       if (parameters.connect_to_source) {
         push_into_tmp_pins(tmp_pins, flow_problem.source, he_hash, true);
@@ -543,13 +543,13 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
         parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
         parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
         if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
-          __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
+          std::atomic_ref{flow_problem.total_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
         }
 
         if ( parameters.connect_to_source && parameters.connect_to_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          __atomic_fetch_add(&flow_problem.non_removable_cut, parameters.capacity, __ATOMIC_RELAXED);
+          std::atomic_ref{flow_problem.non_removable_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
         } else {
           // Add hyperedge to flow network and configure source and sink
           size_t hash = 0;
@@ -696,13 +696,13 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
         parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
         parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
         if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
-          __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
+          std::atomic_ref{flow_problem.total_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
         }
 
         if ( parameters.connect_to_source && parameters.connect_to_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          __atomic_fetch_add(&flow_problem.non_removable_cut, parameters.capacity, __ATOMIC_RELAXED);
+          std::atomic_ref{flow_problem.non_removable_cut}.fetch_add(parameters.capacity, std::memory_order_relaxed);
         } else {
           // Add hyperedge to flow network and configure source and sink
           size_t hash = 0;
@@ -846,7 +846,7 @@ void ParallelConstruction<GraphAndGainTypes>::initializeWHFCNodes(const Partitio
     flow_problem.source = whfc::Node(0);
     whfc_to_node[flow_problem.source] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(
-      std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
+      std::max<HypernodeWeight>(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
     tbb::parallel_for(UL(0), sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_0[i];
       const whfc::Node u(1 + i);
@@ -867,7 +867,7 @@ void ParallelConstruction<GraphAndGainTypes>::initializeWHFCNodes(const Partitio
     flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
     whfc_to_node[flow_problem.sink] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(
-      std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
+      std::max<HypernodeWeight>(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
     tbb::parallel_for(UL(0), sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_1[i];
       const whfc::Node u(flow_problem.sink + 1 + i);

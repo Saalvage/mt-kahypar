@@ -376,7 +376,7 @@ namespace mt_kahypar {
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
-        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
+        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max<HypernodeWeight>(perfect_part_weights_sum, 1)) - 1);
       }
     } else {
       partition.perfect_balance_part_weights.clear();
@@ -611,6 +611,8 @@ namespace mt_kahypar {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::bottleneck: partition.gain_policy = GainPolicy::bottleneck; break;
+        case Objective::l2: partition.gain_policy = GainPolicy::l2; break;
         case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
         case Objective::steiner_tree: partition.gain_policy = GainPolicy::steiner_tree; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;

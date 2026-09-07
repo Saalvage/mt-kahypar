@@ -39,6 +39,8 @@ struct BipartitioningPolicy {
   static bool useCutNetSplitting(const GainPolicy policy) {
     switch(policy) {
       case GainPolicy::cut: return false;
+      case GainPolicy::bottleneck: return true;
+      case GainPolicy::l2: return true;
       case GainPolicy::km1: return true;
       case GainPolicy::soed: return true;
       case GainPolicy::steiner_tree: return true;
@@ -53,6 +55,8 @@ struct BipartitioningPolicy {
   static HyperedgeWeight nonCutEdgeMultiplier(const GainPolicy policy) {
     switch(policy) {
       case GainPolicy::cut: return 1;
+      case GainPolicy::bottleneck: return 1;
+      case GainPolicy::l2: return 1;
       case GainPolicy::km1: return 1;
       case GainPolicy::soed: return 2;
       case GainPolicy::steiner_tree: return 1;

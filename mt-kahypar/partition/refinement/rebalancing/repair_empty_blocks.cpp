@@ -97,7 +97,7 @@ template <typename GraphAndGainTypes>
 void RepairEmptyBlocks<GraphAndGainTypes>::computeBestMovesBlockIndependent(PartitionedHypergraph& phg) {
   ALWAYS_ASSERT(GainComputation::is_independent_of_block);
   if constexpr (GainComputation::is_independent_of_block) {  // needed to access GainComputation::computeIsolatedBlockGain
-    const bool gain_cache_initialized = _gain_cache.isInitialized();
+    const bool gain_cache_initialized = false;//_gain_cache.isInitialized();
 
     tbb::enumerable_thread_specific<vec<Move>> local_best_move_for_part(_empty_parts.size(), Move{});
     _global_best_move_for_part.clear();

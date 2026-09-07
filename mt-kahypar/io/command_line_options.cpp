@@ -145,10 +145,12 @@ namespace mt_kahypar {
       },
       "Objective:\n"
       " - cut:  cut-net metric\n"
+      " - bottleneck: bottleneck metric\n"
+      " - l2: l2 metric\n"
       " - km1:  connectivity metric\n"
       " - soed: sum-of-external-degree metric\n"
       " - steiner_tree: maps a (hyper)graph onto a target graph"
-    )->required()->check(CLI::IsMember({"cut", "km1", "soed", "steiner_tree"}));
+    )->required()->check(CLI::IsMember({"cut", "bottleneck", "l2", "km1", "soed", "steiner_tree"}));
     return app.add_option_function<std::string>(
       "--preset-type", [&](const std::string& s) {
         context.partition.preset_type = presetTypeFromString(s);

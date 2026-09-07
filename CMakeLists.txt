@@ -46,7 +46,7 @@ endif()
 
 # meta targets for flags
 add_library(MtKaHyPar-BuildFlags INTERFACE)
-target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_17)
+target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_20)
 
 # meta targets for includes and source files
 add_library(MtKaHyPar-Include INTERFACE)
@@ -336,7 +336,7 @@ endif()
 #################################################################
 
 include(FetchContent)
-set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
+set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
 set(KAHYPAR_WHFC_TAG             51b27ff2c27a4794bfbaa4e8189d38159d249312)
 set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
