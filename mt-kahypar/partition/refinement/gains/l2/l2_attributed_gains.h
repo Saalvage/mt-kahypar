@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/synchronized_edge_update.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 
 namespace mt_kahypar {
 
@@ -37,13 +38,6 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct L2AttributedGains {
-  // Calculates (a+delta)^2 - a^2 while avoiding cancellation.
-  template <typename F>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  static F quadratic_delta(F a, F delta) {
-    return 2 * a * delta + delta * delta;
-  }
-
   static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
     const HypernodeID edge_size = sync_update.edge_size;
     const HyperedgeWeight edge_weight = sync_update.edge_weight;

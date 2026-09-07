@@ -1201,11 +1201,11 @@ class PartitionedHypergraph {
         }
       }
     }
-    std::cout << "COMPUTED" << std::endl;
+    /*std::cout << "COMPUTED" << std::endl;
     for (PartitionID p = 0; p < _k; ++p) {
       std::cout << _part_metric_contribution[p].load(std::memory_order_relaxed) << " ";
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
     /*doParallelForAllEdges([this](HyperedgeID he) {
       if (connectivity(he) > 1) {
         for (const PartitionID part : connectivitySet(he)) {

@@ -51,6 +51,7 @@
 #endif
 #include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/l2/l2_gain_cache.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
@@ -114,8 +115,8 @@ struct BottleneckGainTypes : public kahypar::meta::PolicyBase {
 struct L2GainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = L2GainComputation;
   using AttributedGains = L2AttributedGains;
-  using GainCache = CutGainCache;
-  using DeltaGainCache = DeltaCutGainCache;
+  using GainCache = L2GainCache;
+  using DeltaGainCache = DeltaL2GainCache;
   using Rollback = CutRollback;
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };

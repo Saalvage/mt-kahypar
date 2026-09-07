@@ -26,14 +26,10 @@
 
 #pragma once
 
-#include <vector>
-
-#include <tbb/enumerable_thread_specific.h>
-
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 
 namespace mt_kahypar {
 
@@ -62,46 +58,38 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-      PartitionID connectivity = phg.connectivity(he);
+      HypernodeID edge_size = phg.edgeSize(he);
+
+      // Node is only part of net, can never cut.
+      if (edge_size == 1) continue;
+
       HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
       HyperedgeWeight weight = phg.edgeWeight(he);
-      HypernodeID edge_size = phg.edgeSize(he);
-      if (connectivity == 1 && edge_size > 1) {
+      // TODO: Use connectivity here?
+      if (pin_count_in_from_part == edge_size) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
-        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(from);
-        HyperedgeWeight part_sum_weight_after = part_sum_weight + weight;
-        isolated_block_gain += part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
+        isolated_block_gain += weight;
       } else if (pin_count_in_from_part == 1) {
-        HyperedgeWeight part_sum_weight = phg.partSumCutEdgeWeight(from);
-        HyperedgeWeight part_sum_weight_after = part_sum_weight - weight;
-        HyperedgeWeight score_gain = part_sum_weight_after * part_sum_weight_after - part_sum_weight * part_sum_weight;
-        for (const PartitionID& to : phg.connectivitySet(he)) {
-          // In case there are only two blocks contained in the current
-          // hyperedge and only one pin left in the from part of the hyperedge,
-          // we would make the current hyperedge a non-cut hyperedge when moving
-          // vertex hn to the other block.
-          if (from != to) {
-            tmp_scores[to] -= score_gain;
-
-            // Moving to this block would make it a non-cut hyperedge.
-            if (phg.pinCountInPart(he, to) == edge_size - 1) {
-              HyperedgeWeight part_sum_weight_to = phg.partSumCutEdgeWeight(to);
-              HyperedgeWeight part_sum_weight_to_after = part_sum_weight_to - weight;
-              tmp_scores[to] -= part_sum_weight_to_after * part_sum_weight_to_after - part_sum_weight_to * part_sum_weight_to;
-            }
-          }
-        }
+        // The current block would no longer be affected by the cut.
+        isolated_block_gain -= weight;
       }
 
-      // TODO: Possibly optimize.
       for (const PartitionID& to : phg.connectivitySet(he)) {
-        if (from != to && phg.pinCountInPart(he, to) == 0) {
-          HyperedgeWeight part_sum_weight_to = phg.partSumCutEdgeWeight(to);
-          HyperedgeWeight part_sum_weight_to_after = part_sum_weight_to + weight;
-          tmp_scores[to] -= part_sum_weight_to_after * part_sum_weight_to_after - part_sum_weight_to * part_sum_weight_to;
+        if (from == to) continue;
+
+        HypernodeID pin_count_in_to_part = phg.pinCountInPart(he, to);
+        if (pin_count_in_to_part == 0) {
+          tmp_scores[to] -= weight;
+        } else if (pin_count_in_to_part == edge_size - 1) {
+          tmp_scores[to] += weight;
         }
       }
+    }
+
+    isolated_block_gain = quadratic_delta(phg.partSumCutEdgeWeight(from), isolated_block_gain);
+    for (auto& [to, weight_delta] : tmp_scores) {
+      weight_delta = quadratic_delta(phg.partSumCutEdgeWeight(to), weight_delta);
     }
   }
 
@@ -109,29 +97,29 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
   template<typename PartitionedHypergraph>
   static Gain computeIsolatedBlockGain(const PartitionedHypergraph& phg, const HypernodeID hn) {
     Gain isolated_block_sum_cut_edge_weight = 0;
-    Gain existing_block_initial_sum_cut_edge_weight = phg.partSumCutEdgeWeight(phg.partID(hn));
-    Gain existing_block_sum_cut_edge_weight = existing_block_initial_sum_cut_edge_weight;
+    Gain existing_block_sum_cut_edge_weight = 0;
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
       if (phg.edgeSize(he) == 1) continue;
 
       auto weight = phg.edgeWeight(he);
       isolated_block_sum_cut_edge_weight += weight;
 
-      PartitionID connectivity = phg.connectivity(he);
-      if (connectivity == 1) {
+      if (phg.connectivity(he) == 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
-        existing_block_sum_cut_edge_weight += phg.edgeWeight(he);
+        existing_block_sum_cut_edge_weight += weight;
+      } else if (phg.pinCountInPart(he, phg.partID(hn)) == 1) {
+        // The current block would no longer be affected by the cut.
+        existing_block_sum_cut_edge_weight -= weight;
       }
     }
-    Gain existing_block_contribution = existing_block_sum_cut_edge_weight * existing_block_sum_cut_edge_weight
-      - existing_block_initial_sum_cut_edge_weight * existing_block_initial_sum_cut_edge_weight;
+    Gain existing_block_contribution = quadratic_delta(phg.partSumCutEdgeWeight(phg.partID(hn)), existing_block_sum_cut_edge_weight);
     return existing_block_contribution + isolated_block_sum_cut_edge_weight * isolated_block_sum_cut_edge_weight;
   }
 
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {
-    return -to_score;
+    return isolated_block_gain - to_score;
   }
 
   void changeNumberOfBlocksImpl(const PartitionID) {
