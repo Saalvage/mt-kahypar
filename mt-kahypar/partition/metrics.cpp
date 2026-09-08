@@ -176,7 +176,7 @@ template<typename PartitionedHypergraph>
 HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) {
   return compute_per_part_cut_parallel(phg,
   [&](const std::vector<HyperedgeWeight>& accumulator) {
-    std::cout << "METRIC ACTUAL" << std::endl;
+    /*std::cout << "METRIC ACTUAL" << std::endl;
     for (const auto& value : accumulator) {
       std::cout << value << " ";
     }
@@ -188,7 +188,7 @@ HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) 
         std::cout << phg.partSumCutEdgeWeight(i) << " ";
       }
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
     auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return value * value; });
     return std::accumulate(range.begin(), range.end(), HyperedgeWeight{0}, std::plus{});
   });

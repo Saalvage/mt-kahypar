@@ -183,13 +183,13 @@ namespace mt_kahypar {
       _rebalancer->initialize(phg);
     }
 
-    std::cout << "BEFORE REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
+    //std::cout << "BEFORE REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
     if ( !metrics::isValidPartition(partitioned_hypergraph, _context) && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _timer.start_timer("rebalance", "Rebalance");
       _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
       _timer.stop_timer("rebalance");
     }
-    std::cout << "AFTER REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
+    //std::cout << "AFTER REBALANCE" << metrics::quality(partitioned_hypergraph, _context) << std::endl;
 
     bool improvement_found = true;
     while( improvement_found ) {
