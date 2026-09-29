@@ -155,7 +155,7 @@ struct NodeTracker {
 // incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
 // gain for moves that violate the balance constraint
 class UnconstrainedFMData {
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = parallel::AtomicWrapper<HypernodeWeight>;
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 

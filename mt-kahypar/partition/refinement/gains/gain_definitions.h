@@ -49,6 +49,9 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
 #endif
+#include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/l2/l2_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/l2/l2_gain_cache.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
@@ -99,6 +102,24 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
 #endif
+
+struct BottleneckGainTypes : public kahypar::meta::PolicyBase {
+  using GainComputation = CutGainComputation;
+  using AttributedGains = CutAttributedGains;
+  using GainCache = CutGainCache;
+  using DeltaGainCache = DeltaCutGainCache;
+  using Rollback = CutRollback;
+  using FlowNetworkConstruction = CutFlowNetworkConstruction;
+};
+
+struct L2GainTypes : public kahypar::meta::PolicyBase {
+  using GainComputation = L2GainComputation;
+  using AttributedGains = L2AttributedGains;
+  using GainCache = L2GainCache;
+  using DeltaGainCache = DeltaL2GainCache;
+  using Rollback = CutRollback;
+  using FlowNetworkConstruction = CutFlowNetworkConstruction;
+};
 
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 struct SteinerTreeGainTypes : public kahypar::meta::PolicyBase {
@@ -151,7 +172,9 @@ struct GraphAndGainTypes : public kahypar::meta::PolicyBase {
 
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
-                                          CutGainTypes
+                                          CutGainTypes,
+                                          BottleneckGainTypes,
+                                          L2GainTypes
                                           ENABLE_SOED(COMMA SoedGainTypes)
                                           ENABLE_STEINER_TREE(COMMA SteinerTreeGainTypes)
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)
@@ -159,7 +182,9 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
 
 #define _LIST_HYPERGRAPH_COMBINATIONS(TYPE_TRAITS)                                     \
   GraphAndGainTypes<TYPE_TRAITS, Km1GainTypes>,                                           \
-  GraphAndGainTypes<TYPE_TRAITS, CutGainTypes>                                            \
+  GraphAndGainTypes<TYPE_TRAITS, CutGainTypes>,                                           \
+  GraphAndGainTypes<TYPE_TRAITS, BottleneckGainTypes>,                                    \
+  GraphAndGainTypes<TYPE_TRAITS, L2GainTypes>                                             \
   ENABLE_SOED(COMMA GraphAndGainTypes<TYPE_TRAITS COMMA SoedGainTypes>)                   \
   ENABLE_STEINER_TREE(COMMA GraphAndGainTypes<TYPE_TRAITS COMMA SteinerTreeGainTypes>)
 
@@ -177,6 +202,8 @@ using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATI
 #define _INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, TYPE_TRAITS)                  \
   template class C(GraphAndGainTypes<TYPE_TRAITS COMMA Km1GainTypes>);                                \
   template class C(GraphAndGainTypes<TYPE_TRAITS COMMA CutGainTypes>);                                \
+  template class C(GraphAndGainTypes<TYPE_TRAITS COMMA BottleneckGainTypes>);                         \
+  template class C(GraphAndGainTypes<TYPE_TRAITS COMMA L2GainTypes>);                                 \
   ENABLE_SOED(template class C(GraphAndGainTypes<TYPE_TRAITS COMMA SoedGainTypes>);)                  \
   ENABLE_STEINER_TREE(template class C(GraphAndGainTypes<TYPE_TRAITS COMMA SteinerTreeGainTypes>);)
 
@@ -203,6 +230,8 @@ using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATI
   switch ( gain_policy ) {                                                                    \
     case GainPolicy::km1: _RETURN_COMBINED_POLICY(TYPE_TRAITS, Km1GainTypes)                  \
     case GainPolicy::cut: _RETURN_COMBINED_POLICY(TYPE_TRAITS, CutGainTypes)                  \
+    case GainPolicy::bottleneck: _RETURN_COMBINED_POLICY(TYPE_TRAITS, BottleneckGainTypes)    \
+    case GainPolicy::l2: _RETURN_COMBINED_POLICY(TYPE_TRAITS, L2GainTypes)                    \
     case GainPolicy::soed: ENABLE_SOED(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SoedGainTypes))   \
     case GainPolicy::steiner_tree:                                                            \
       ENABLE_STEINER_TREE(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeGainTypes))         \

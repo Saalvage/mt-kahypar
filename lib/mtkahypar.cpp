@@ -188,11 +188,17 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
       } else if ( objective == "cut" ) {
         c.partition.objective = Objective::cut;
         return mt_kahypar_status_t::SUCCESS;
+      } else if ( objective == "bottleneck" ) {
+        c.partition.objective = Objective::bottleneck;
+        return mt_kahypar_status_t::SUCCESS;
+      } else if ( objective == "l2" ) {
+        c.partition.objective = Objective::l2;
+        return mt_kahypar_status_t::SUCCESS;
       } else if ( objective == "soed" ) {
         c.partition.objective = Objective::soed;
         return mt_kahypar_status_t::SUCCESS;
       }
-      report_conversion_error("one of km1, cut, soed");
+      report_conversion_error("one of km1, cut, bottleneck, l2, soed");
       return mt_kahypar_status_t::INVALID_PARAMETER;
     }
     case VERBOSE: {
