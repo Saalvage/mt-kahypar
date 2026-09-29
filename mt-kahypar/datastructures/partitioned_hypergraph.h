@@ -718,6 +718,10 @@ class PartitionedHypergraph {
     return _part_metric_contribution[p].load(std::memory_order_relaxed);
   }
 
+  const vec< CAtomic<HyperedgeWeight> >& partSumCutEdgeWeights() const {
+	  return _part_metric_contribution;
+  }
+
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {

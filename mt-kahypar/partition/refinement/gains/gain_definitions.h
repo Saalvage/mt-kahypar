@@ -52,6 +52,7 @@
 #include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/l2/l2_rollback.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
@@ -117,7 +118,7 @@ struct L2GainTypes : public kahypar::meta::PolicyBase {
   using AttributedGains = L2AttributedGains;
   using GainCache = L2GainCache;
   using DeltaGainCache = DeltaL2GainCache;
-  using Rollback = CutRollback;
+  using Rollback = L2Rollback;
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 

@@ -43,3 +43,5 @@ python/examples/*.so
 compile_commands.json
 cmake-build-default-1/
 cmake-build-dev-debug-2/
+out/
+.vs/

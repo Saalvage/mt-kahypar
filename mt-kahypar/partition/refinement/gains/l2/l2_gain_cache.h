@@ -36,6 +36,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -66,7 +67,7 @@ class L2GainCache {
   static constexpr GainPolicy TYPE = GainPolicy::l2;
   static constexpr bool requires_notification_before_update = false;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
-  static constexpr bool invalidates_entries = false;
+  static constexpr bool invalidates_entries = true; // TODO: ?
 
   L2GainCache() :
     _is_initialized(false),
@@ -89,7 +90,7 @@ class L2GainCache {
   // ####################### Initialization #######################
 
   bool isInitialized() const {
-    return false;
+    return _is_initialized;
   }
 
   void reset(HypernodeID /*num_nodes*/, const bool run_parallel = true) {
@@ -129,9 +130,9 @@ class L2GainCache {
   // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = |e| })
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID u,
-                              const PartitionID /* only relevant for graphs */) const {
+                              const PartitionID from) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    return _gain_cache[penalty_index(u)].load(std::memory_order_relaxed);
+    return quadratic_delta((*_edge_weight_sum_per_partition)[from].load(std::memory_order_relaxed), _gain_cache[penalty_index(u)].load(std::memory_order_relaxed));
   }
 
   // ! Recomputes the penalty term entry in the gain cache
@@ -149,17 +150,17 @@ class L2GainCache {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    return _gain_cache[benefit_index(u, to)].load(std::memory_order_relaxed);
+    return -quadratic_delta((*_edge_weight_sum_per_partition)[to].load(std::memory_order_relaxed), _gain_cache[benefit_index(u, to)].load(std::memory_order_relaxed));
   }
 
   // ! Returns the gain of moving node u from its current block to a target block V_j.
   // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
-                       const PartitionID, /* only relevant for graphs */
+                       const PartitionID from,
                        const PartitionID to ) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    return benefitTerm(u, to) - penaltyTerm(u, kInvalidPartition);
+    return benefitTerm(u, to) - penaltyTerm(u, from);
   }
 
   // ####################### Delta Gain Update #######################
@@ -236,8 +237,14 @@ class L2GainCache {
     HyperedgeWeight penalty = 0;
     for (HyperedgeID e : partitioned_hg.incidentEdges(u)) {
       const HypernodeID edge_size = partitioned_hg.edgeSize(e);
-      if ( partitioned_hg.pinCountInPart(e, block_of_u) == edge_size && edge_size > 1 ) {
+      if (edge_size == 1) {
+        continue;
+      }
+	  const HypernodeID pin_count = partitioned_hg.pinCountInPart(e, block_of_u);
+      if (pin_count == edge_size) {
         penalty += partitioned_hg.edgeWeight(e);
+      } else if (pin_count == 1) {
+        penalty -= partitioned_hg.edgeWeight(e);
       }
     }
     return penalty;
@@ -251,9 +258,15 @@ class L2GainCache {
     HyperedgeWeight benefit = 0;
     for (HyperedgeID e : partitioned_hg.incidentEdges(u)) {
       const HypernodeID edge_size = partitioned_hg.edgeSize(e);
-      if (partitioned_hg.pinCountInPart(e, to) == edge_size - 1 && edge_size > 1) {
-        benefit += partitioned_hg.edgeWeight(e);
+      if (edge_size == 1) {
+        continue;
       }
+	  const HypernodeID pin_count = partitioned_hg.pinCountInPart(e, to);
+      if (pin_count == edge_size - 1) {
+        benefit += partitioned_hg.edgeWeight(e);
+	  } else if (pin_count == 0) {
+		benefit -= partitioned_hg.edgeWeight(e);
+	  }
     }
     return benefit;
   }
@@ -325,6 +338,8 @@ class L2GainCache {
 
   // ! Array of size |V| * (k + 1), which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+
+  const vec<CAtomic<HyperedgeWeight>>* _edge_weight_sum_per_partition;
 };
 
 /**
@@ -351,18 +366,21 @@ class DeltaL2GainCache {
 
   void initialize(const size_t size) {
     _gain_cache_delta.initialize(size);
+    _delta_edge_weight_sum_per_partition.resize(_gain_cache._k);
   }
 
   void clear() {
     _gain_cache_delta.clear();
+    _delta_edge_weight_sum_per_partition.clear();
   }
 
   void dropMemory() {
     _gain_cache_delta.freeInternalData();
+    _delta_edge_weight_sum_per_partition.clear();
   }
 
   size_t size_in_bytes() const {
-    return _gain_cache_delta.size_in_bytes();
+    return _gain_cache_delta.size_in_bytes() + _delta_edge_weight_sum_per_partition.capacity() * sizeof(HyperedgeWeight);
   }
 
   // ####################### Gain Computation #######################
@@ -384,7 +402,8 @@ class DeltaL2GainCache {
                               const PartitionID from) const {
     const HyperedgeWeight* penalty_delta =
       _gain_cache_delta.get_if_contained(_gain_cache.penalty_index(u));
-    return _gain_cache.penaltyTerm(u, from) + ( penalty_delta ? *penalty_delta : 0 );
+    return quadratic_delta((*_gain_cache._edge_weight_sum_per_partition)[from].load(std::memory_order_relaxed) + _delta_edge_weight_sum_per_partition[from],
+        _gain_cache._gain_cache[_gain_cache.penalty_index(u)].load(std::memory_order_relaxed) + ( penalty_delta ? *penalty_delta : 0 ));
   }
 
   // ! Returns the benefit term for moving node u to block to.
@@ -394,7 +413,8 @@ class DeltaL2GainCache {
     ASSERT(to != kInvalidPartition && to < _gain_cache._k);
     const HyperedgeWeight* benefit_delta =
       _gain_cache_delta.get_if_contained(_gain_cache.benefit_index(u, to));
-    return _gain_cache.benefitTerm(u, to) + ( benefit_delta ? *benefit_delta : 0 );
+    return -quadratic_delta((*_gain_cache._edge_weight_sum_per_partition)[to].load(std::memory_order_relaxed) + _delta_edge_weight_sum_per_partition[to],
+        _gain_cache._gain_cache[_gain_cache.benefit_index(u, to)].load(std::memory_order_relaxed) + ( benefit_delta ? *benefit_delta : 0 ));
   }
 
   // ! Returns the gain of moving node u from its current block to a target block V_j.
@@ -413,34 +433,65 @@ class DeltaL2GainCache {
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                        const SynchronizedEdgeUpdate& sync_update) {
     const HypernodeID edge_size = sync_update.edge_size;
-    if ( edge_size > 1 ) {
-      const HyperedgeID he = sync_update.he;
-      const PartitionID from = sync_update.from;
-      const PartitionID to = sync_update.to;
-      const HyperedgeWeight edge_weight = sync_update.edge_weight;
-      const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
-      const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
-      if ( pin_count_in_from_part_after == edge_size - 1 ) {
-        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] -= edge_weight;
-          _gain_cache_delta[_gain_cache.benefit_index(u, from)] += edge_weight;
-        }
-      } else if ( pin_count_in_from_part_after == edge_size - 2 ) {
-        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
-          _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= edge_weight;
-        }
-      }
+    if (edge_size == 1) {
+        return;
+    }
 
-      if ( pin_count_in_to_part_after == edge_size ) {
-        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] += edge_weight;
-          _gain_cache_delta[_gain_cache.benefit_index(u, to)] -= edge_weight;
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
+
+    if (pin_count_in_from_part_after == 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            if (partitioned_hg.partID(u) == from) {
+                _gain_cache_delta[_gain_cache.penalty_index(u)] -= edge_weight;
+            }
         }
-      } else if ( pin_count_in_to_part_after == edge_size - 1 ) {
-        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
-          _gain_cache_delta[_gain_cache.benefit_index(u, to)] += edge_weight;
+    } else if (pin_count_in_from_part_after == 0) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.benefit_index(u, from)] += edge_weight;
         }
-      }
+        _delta_edge_weight_sum_per_partition[from] -= edge_weight;
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.benefit_index(u, to)] -= edge_weight;
+        }
+        _delta_edge_weight_sum_per_partition[to] += edge_weight;
+    } else if (pin_count_in_to_part_after == 2) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            if (partitioned_hg.partID(u) == to) {
+                _gain_cache_delta[_gain_cache.penalty_index(u)] += edge_weight;
+            }
+        }
+    }
+
+    if (pin_count_in_from_part_after == edge_size - 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.penalty_index(u)] -= edge_weight;
+            _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= edge_weight;
+        }
+        _delta_edge_weight_sum_per_partition[from] += edge_weight;
+    } else if (pin_count_in_from_part_after == edge_size - 2) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.benefit_index(u, from)] += edge_weight;
+        }
+    }
+
+    if (pin_count_in_to_part_after == edge_size) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.penalty_index(u)] += edge_weight;
+            _gain_cache_delta[_gain_cache.benefit_index(u, to)] += edge_weight;
+        }
+		_delta_edge_weight_sum_per_partition[to] -= edge_weight;
+    } else if (pin_count_in_to_part_after == edge_size - 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            _gain_cache_delta[_gain_cache.benefit_index(u, to)] -= edge_weight;
+        }
     }
   }
 
@@ -458,6 +509,8 @@ class DeltaL2GainCache {
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the gain cache in '_phg'
   ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
+
+  vec< HyperedgeWeight > _delta_edge_weight_sum_per_partition;
 };
 
 }  // namespace mt_kahypar
