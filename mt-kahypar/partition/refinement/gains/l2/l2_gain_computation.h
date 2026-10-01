@@ -114,7 +114,7 @@ class L2GainComputation : public GainComputationBase<L2GainComputation, L2Attrib
       }
     }
     Gain existing_block_contribution = quadratic_delta(phg.partSumCutEdgeWeight(phg.partID(hn)), existing_block_sum_cut_edge_weight);
-    return existing_block_contribution + isolated_block_sum_cut_edge_weight * isolated_block_sum_cut_edge_weight;
+    return existing_block_contribution + quadratic_delta(0, isolated_block_sum_cut_edge_weight);
   }
 
   HyperedgeWeight gain(const Gain to_score,
