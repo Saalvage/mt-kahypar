@@ -190,7 +190,7 @@ HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) 
       }
     }
     std::cout << std::endl;*/
-    auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return quadratic_delta(0, value); });
+    auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return quadratic_delta(HyperedgeWeight(0), value); });
     return std::accumulate(range.begin(), range.end(), HyperedgeWeight{0}, std::plus{});
   });
 }
