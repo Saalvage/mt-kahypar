@@ -48,27 +48,19 @@ struct L2AttributedGains {
     HyperedgeWeight ret = 0;
 
     if (sync_update.pin_count_in_from_part_after == 0) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.from]
-        .fetch_sub(edge_weight, std::memory_order_relaxed);
-      //std::cout << "REMOVED WEIGHT AT (FROM) " << sync_update.from << " " << before << " -> " << (before - edge_weight) << " " << sync_update.he << std::endl;
-      ret += quadratic_delta(before, -edge_weight);
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, -edge_weight);
     } else if (sync_update.pin_count_in_from_part_after == edge_size - 1) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.from]
-        .fetch_add(edge_weight, std::memory_order_relaxed);
-      //std::cout << "ADDED WEIGHT AT (FROM) " << sync_update.from << " " << before << " -> " << (before + edge_weight) << " " << sync_update.he << std::endl;
-      ret += quadratic_delta(before, edge_weight);
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, edge_weight);
     }
 
     if (sync_update.pin_count_in_to_part_after == edge_size) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.to]
-        .fetch_sub(edge_weight, std::memory_order_relaxed);
-      //std::cout << "REMOVED WEIGHT AT (TO) " << sync_update.to << " " << before << " -> " << (before - edge_weight) << " " << sync_update.he << std::endl;
-      ret += quadratic_delta(before, -edge_weight);
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, -edge_weight);
     } else if (sync_update.pin_count_in_to_part_after == 1) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.to]
-        .fetch_add(edge_weight, std::memory_order_relaxed);
-      //std::cout << "ADDED WEIGHT AT (TO) " << sync_update.to << " " << before << " -> " << (before + edge_weight) << std::endl;
-      ret += quadratic_delta(before, edge_weight);
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, edge_weight);
     }
 
     return ret;

@@ -618,7 +618,6 @@ class PartitionedHypergraph {
       sync_update.to = to;
       sync_update.target_graph = _target_graph;
       sync_update.edge_locks = &_pin_count_update_ownership;
-      sync_update.edge_weight_sum_per_partition = &_part_metric_contribution;
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
       }
@@ -713,8 +712,7 @@ class PartitionedHypergraph {
   // ! Sum of all cut edges of a block
   HyperedgeWeight partSumCutEdgeWeight(const PartitionID p) const {
     ASSERT(p != kInvalidPartition && p < _k);
-    //ASSERT(!_part_metric_contribution.empty());
-    if (_part_metric_contribution.empty()) return -1;
+    ASSERT(!_part_metric_contribution.empty());
     return _part_metric_contribution[p].load(std::memory_order_relaxed);
   }
 
@@ -788,7 +786,6 @@ class PartitionedHypergraph {
     sync_update.edge_locks = &_pin_count_update_ownership;
     sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
     sync_update.pin_counts_after = &_con_info.pinCountSnapshot(he);
-    sync_update.edge_weight_sum_per_partition = &_part_metric_contribution;
     return sync_update;
   }
 
@@ -912,6 +909,31 @@ class PartitionedHypergraph {
       }
     }
     return success;
+  }
+
+  bool checkPerPartMetricContributionConsistency() {
+    if (_part_metric_contribution.empty()) {
+      return true;
+    }
+
+	vec<HyperedgeWeight> recomputed(_k);
+    for (HyperedgeID he = 0; he < initialNumEdges(); ++he) {
+      if (edgeIsEnabled(he) && connectivity(he) > 1) {
+        for (const PartitionID part : connectivitySet(he)) {
+          recomputed[static_cast<std::size_t>(part)] += edgeWeight(he);
+        }
+      }
+    }
+
+	for (PartitionID part = 0; part < _k; ++part) {
+		if (recomputed[part] != partSumCutEdgeWeight(part)) {
+			LOG << "Part " << part << ": "
+				<< "Expected:" << V(recomputed[part]) << ", "
+				<< "Actual:" << V(partSumCutEdgeWeight(part));
+			return false;
+		}
+	}
+    return true;
   }
 
   // ####################### Fixed Vertex Support #######################
@@ -1298,6 +1320,23 @@ class PartitionedHypergraph {
     sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
     sync_update.pin_counts_after = hasTargetGraph() ? &_con_info.pinCountSnapshot(he) : nullptr;
     _pin_count_update_ownership[he].unlock();
+    if (!_part_metric_contribution.empty()) {
+      if (sync_update.pin_count_in_from_part_after == 0) {
+        sync_update.from_part_edge_sum_before = _part_metric_contribution[from].fetch_sub(
+          sync_update.edge_weight, std::memory_order_relaxed);
+      } else if (sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1) {
+        sync_update.from_part_edge_sum_before = _part_metric_contribution[from].fetch_add(
+          sync_update.edge_weight, std::memory_order_relaxed);
+      }
+
+      if (sync_update.pin_count_in_to_part_after == sync_update.edge_size) {
+        sync_update.to_part_edge_sum_before = _part_metric_contribution[to].fetch_sub(
+          sync_update.edge_weight, std::memory_order_relaxed);
+      } else if (sync_update.pin_count_in_to_part_after == 1) {
+        sync_update.to_part_edge_sum_before = _part_metric_contribution[to].fetch_add(
+          sync_update.edge_weight, std::memory_order_relaxed);
+      }
+    }
     delta_func(sync_update);
   }
 
