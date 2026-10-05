@@ -34,6 +34,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 
 namespace mt_kahypar {
 
@@ -189,7 +190,7 @@ HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) 
       }
     }
     std::cout << std::endl;*/
-    auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return value * value; });
+    auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return quadratic_delta(0, value); });
     return std::accumulate(range.begin(), range.end(), HyperedgeWeight{0}, std::plus{});
   });
 }
