@@ -512,7 +512,7 @@ void SteinerTreeGainCache::initializeGainCacheEntryForNode(const PartitionedHype
 
   for ( PartitionID to = 0; to < _k; ++to ) {
     _gain_cache[benefit_index(u, to)].store(benefit_aggregator[to], std::memory_order_relaxed);
-    benefit_aggregator[to] = std::numeric_limits<Gain>::min();
+    benefit_aggregator[to] = std::numeric_limits<Gain>::lowest();
   }
 }
 

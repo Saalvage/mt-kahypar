@@ -31,6 +31,9 @@ set(SoedSources
 set(CutSources
         gains/cut/cut_gain_cache.cpp)
 
+set(L2Sources
+        gains/l2/l2_gain_cache.cpp)
+
 set(CutGraphSources
         gains/cut_for_graphs/cut_gain_cache_for_graphs.cpp)
 
@@ -45,7 +48,7 @@ set(SteinerTreeGraphSources
 target_sources(MtKaHyPar-Sources INTERFACE ${RefinementSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${Km1Sources})
 target_sources(MtKaHyPar-Sources INTERFACE ${CutSources})
-
+target_sources(MtKaHyPar-Sources INTERFACE ${L2Sources})
 if ( KAHYPAR_ENABLE_SOED_METRIC )
   target_sources(MtKaHyPar-Sources INTERFACE ${SoedSources})
 else ()

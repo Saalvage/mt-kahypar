@@ -64,7 +64,7 @@ namespace mt_kahypar::ds {
     Array<HyperedgeID>& node_sizes = _tmp_contraction_buffer->node_sizes;
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>>& tmp_num_incident_edges =
             _tmp_contraction_buffer->tmp_num_incident_edges;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& node_weights =
+    Array<parallel::AtomicWrapper<HypernodeWeight>>& node_weights =
             _tmp_contraction_buffer->node_weights;
     Array<TmpEdgeInformation>& tmp_edges = _tmp_contraction_buffer->tmp_edges;
     Array<HyperedgeID>& edge_id_mapping = _tmp_contraction_buffer->edge_id_mapping;
@@ -102,7 +102,7 @@ namespace mt_kahypar::ds {
 
       // Reset tmp contraction buffer
       if ( node < coarsened_num_nodes ) {
-        node_weights[node] = 0;
+        node_weights[node].store(0);
         tmp_nodes[node] = Node(true);
         node_sizes[node] = 0;
         tmp_num_incident_edges[node] = 0;

@@ -29,10 +29,12 @@
 
 #include <cmath>
 #include <algorithm>
+#include <ranges>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 
 namespace mt_kahypar {
 
@@ -112,6 +114,17 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
   }
 };
 
+// Computing per-edge contributions for these objectives is not feasible.
+template<typename PartitionedHypergraph>
+struct ObjectiveFunction<PartitionedHypergraph, Objective::bottleneck> {
+  static_assert(false);
+};
+
+template<typename PartitionedHypergraph>
+struct ObjectiveFunction<PartitionedHypergraph, Objective::l2> {
+    static_assert(false);
+};
+
 template<typename PartitionedHypergraph>
 struct ObjectiveFunction<PartitionedHypergraph, Objective::steiner_tree> {
   HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
@@ -130,6 +143,56 @@ HyperedgeWeight compute_objective_parallel(const PartitionedHypergraph& phg) {
     obj.local() += func(phg, he);
   });
   return obj.combine(std::plus<>()) / (PartitionedHypergraph::is_graph ? 2 : 1);
+}
+
+static thread_local std::vector<HyperedgeWeight> _weightPerPartAccumulator;
+
+template<typename PartitionedHypergraph, typename F>
+auto compute_per_part_cut_parallel(const PartitionedHypergraph& phg, F&& func) {
+  std::vector<HyperedgeWeight>& accumulator = _weightPerPartAccumulator;
+
+  accumulator.clear();
+  accumulator.resize(phg.k());
+
+  phg.doParallelForAllEdges([&phg, &accumulator](HyperedgeID he) {
+    if (phg.connectivity(he) > 1) {
+      for (const PartitionID part : phg.connectivitySet(he)) {
+        std::atomic_ref{accumulator[static_cast<std::size_t>(part)]}.fetch_add(phg.edgeWeight(he), std::memory_order_relaxed);
+      }
+    }
+  });
+
+  return func(accumulator);
+}
+
+template<typename PartitionedHypergraph>
+HyperedgeWeight compute_objective_parallel_bottleneck(const PartitionedHypergraph& phg) {
+  return compute_per_part_cut_parallel(phg,
+    [](const std::vector<HyperedgeWeight>& accumulator) {
+      return std::ranges::max(accumulator);
+    });
+}
+
+template<typename PartitionedHypergraph>
+HyperedgeWeight compute_objective_parallel_l2(const PartitionedHypergraph& phg) {
+  return compute_per_part_cut_parallel(phg,
+  [&](const std::vector<HyperedgeWeight>& accumulator) {
+    /*std::cout << "METRIC ACTUAL" << std::endl;
+    for (const auto& value : accumulator) {
+      std::cout << value << " ";
+    }
+    if constexpr (requires {
+      phg.partSumCutEdgeWeight(2);
+    }) {
+      std::cout << std::endl << "METRIC STORED" << std::endl;
+      for (int i = 0; i < phg.k(); ++i) {
+        std::cout << phg.partSumCutEdgeWeight(i) << " ";
+      }
+    }
+    std::cout << std::endl;*/
+    auto range = std::ranges::views::transform(accumulator, [](const HyperedgeWeight& value) { return quadratic_delta(0, value); });
+    return std::accumulate(range.begin(), range.end(), HyperedgeWeight{0}, std::plus{});
+  });
 }
 
 template<Objective objective, typename PartitionedHypergraph>
@@ -171,6 +234,10 @@ HyperedgeWeight quality(const PartitionedHypergraph& hg,
     case Objective::soed:
       return parallel ? compute_objective_parallel<Objective::soed>(hg) :
         compute_objective_sequentially<Objective::soed>(hg);
+    case Objective::bottleneck:
+      return compute_objective_parallel_bottleneck(hg);
+    case Objective::l2:
+      return compute_objective_parallel_l2(hg);
     case Objective::steiner_tree:
       return parallel ? compute_objective_parallel<Objective::steiner_tree>(hg) :
         compute_objective_sequentially<Objective::steiner_tree>(hg);
@@ -187,6 +254,8 @@ HyperedgeWeight contribution(const PartitionedHypergraph& hg,
     case Objective::cut: return contribution<Objective::soed>(hg, he);
     case Objective::km1: return contribution<Objective::km1>(hg, he);
     case Objective::soed: return contribution<Objective::soed>(hg, he);
+    case Objective::bottleneck: return contribution<Objective::soed>(hg, he);
+    case Objective::l2: return contribution<Objective::soed>(hg, he);
     case Objective::steiner_tree: return contribution<Objective::steiner_tree>(hg, he);
     default: throw InvalidParameterException("Unknown Objective");
   }

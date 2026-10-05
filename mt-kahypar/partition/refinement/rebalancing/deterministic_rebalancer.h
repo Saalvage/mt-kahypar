@@ -54,7 +54,7 @@ private:
     using GainCache = typename GraphAndGainTypes::GainCache;
     using GainComputation = typename GraphAndGainTypes::GainComputation;
     using RatingMap = typename GainComputation::RatingMap;
-    using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+    using AtomicWeight = parallel::AtomicWrapper<HypernodeWeight>;
 
     static constexpr bool debug = false;
     static constexpr bool enable_heavy_assert = false;

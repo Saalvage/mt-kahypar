@@ -68,7 +68,7 @@ void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
     _matching_partner[hn] = hn;
     cluster_ids[hn] = hn;
     if ( current_hg.nodeIsEnabled(hn) ) {
-      _cluster_weight[hn] = current_hg.nodeWeight(hn);
+      _cluster_weight[hn].store(current_hg.nodeWeight(hn));
     }
   });
 }

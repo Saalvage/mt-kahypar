@@ -26,48 +26,45 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
 
 namespace mt_kahypar {
 
+/**
+ * After moving a node, we perform a synchronized update of the pin count values
+ * for each incident hyperedge of the node based on which we then compute an
+ * attributed gain value.
+ */
+struct L2AttributedGains {
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
+    const HypernodeID edge_size = sync_update.edge_size;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
 
-struct BipartitioningPolicy {
-  static bool useCutNetSplitting(const GainPolicy policy) {
-    switch(policy) {
-      case GainPolicy::cut: return false;
-      case GainPolicy::bottleneck: return true;
-      case GainPolicy::l2: return true;
-      case GainPolicy::km1: return true;
-      case GainPolicy::soed: return true;
-      case GainPolicy::steiner_tree: return true;
-      case GainPolicy::cut_for_graphs: return false;
-      case GainPolicy::steiner_tree_for_graphs: return false;
-      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
-    }
-    throw InvalidParameterException("Gain policy is unknown");
-    return false;
-  }
+    if (edge_size <= 1) return 0;
 
-  static HyperedgeWeight nonCutEdgeMultiplier(const GainPolicy policy) {
-    switch(policy) {
-      case GainPolicy::cut: return 1;
-      case GainPolicy::bottleneck: return 1;
-      case GainPolicy::l2: return 1;
-      case GainPolicy::km1: return 1;
-      case GainPolicy::soed: return 2;
-      case GainPolicy::steiner_tree: return 1;
-      case GainPolicy::cut_for_graphs: return 1;
-      case GainPolicy::steiner_tree_for_graphs: return 1;
-      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
+
+    HyperedgeWeight ret = 0;
+
+    if (sync_update.pin_count_in_from_part_after == 0) {
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, -edge_weight);
+    } else if (sync_update.pin_count_in_from_part_after == edge_size - 1) {
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, edge_weight);
     }
-    throw InvalidParameterException("Gain policy is unknown");
-    return 0;
+
+    if (sync_update.pin_count_in_to_part_after == edge_size) {
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, -edge_weight);
+    } else if (sync_update.pin_count_in_to_part_after == 1) {
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, edge_weight);
+    }
+
+    return ret;
   }
 };
-
 
 }  // namespace mt_kahypar

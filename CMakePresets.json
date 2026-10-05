@@ -71,14 +71,24 @@
                 "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "ON"
             }
         },
-        {
-            "name": "minimal-dev",
+      {
+        "name": "minimal-dev",
+        "inherits": [ "minimal" ],
+        "cacheVariables": {
+          "KAHYPAR_ENABLE_TESTING": "ON",
+          "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+          "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+        }
+      },
+      {
+            "name": "minimal-dev-debug",
             "inherits": ["minimal"],
-            "cacheVariables": {
-                "KAHYPAR_ENABLE_TESTING": "ON",
-                "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
-                "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
-            }
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "KAHYPAR_ENABLE_TESTING": "ON",
+          "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+          "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+        }
         },
         {
             "name": "all-dev",

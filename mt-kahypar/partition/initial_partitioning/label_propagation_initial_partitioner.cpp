@@ -245,7 +245,7 @@ MaxGainMove LabelPropagationInitialPartitioner<TypeTraits>::findMaxGainMove(Part
                                                                             const HyperedgeWeight internal_weight) {
   const PartitionID from = hypergraph.partID(hn);
   PartitionID best_block = from;
-  Gain best_score = from == kInvalidPartition ? std::numeric_limits<Gain>::min() : 0;
+  Gain best_score = from == kInvalidPartition ? std::numeric_limits<Gain>::lowest() : 0;
   for (PartitionID block = 0; block < _context.partition.k; ++block) {
     if (from != block && _valid_blocks[block]) {
       _tmp_scores[block] -= internal_weight;
