@@ -48,23 +48,19 @@ struct L2AttributedGains {
     HyperedgeWeight ret = 0;
 
     if (sync_update.pin_count_in_from_part_after == 0) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.from]
-          .load(std::memory_order_relaxed);
-      ret += quadratic_delta(before, -edge_weight);
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, -edge_weight);
     } else if (sync_update.pin_count_in_from_part_after == edge_size - 1) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.from]
-          .load(std::memory_order_relaxed);
-      ret += quadratic_delta(before, edge_weight);
+      ASSERT(sync_update.from_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.from_part_edge_sum_before, edge_weight);
     }
 
     if (sync_update.pin_count_in_to_part_after == edge_size) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.to]
-          .load(std::memory_order_relaxed);
-      ret += quadratic_delta(before, -edge_weight);
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, -edge_weight);
     } else if (sync_update.pin_count_in_to_part_after == 1) {
-      const HyperedgeWeight before = (*sync_update.edge_weight_sum_per_partition)[sync_update.to]
-        .load(std::memory_order_relaxed);
-      ret += quadratic_delta(before, edge_weight);
+      ASSERT(sync_update.to_part_edge_sum_before >= 0);
+      ret += quadratic_delta(sync_update.to_part_edge_sum_before, edge_weight);
     }
 
     return ret;

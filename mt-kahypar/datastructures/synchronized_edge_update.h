@@ -44,12 +44,13 @@ struct SynchronizedEdgeUpdate {
   HypernodeID edge_size = 0;
   HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
   HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
+  HyperedgeWeight from_part_edge_sum_before = -1;
+  HyperedgeWeight to_part_edge_sum_before = -1;
   PartitionID block_of_other_node = kInvalidPartition;
   ds::Bitset* connectivity_set_after = nullptr;
   ds::PinCountSnapshot* pin_counts_after = nullptr;
   const TargetGraph* target_graph = nullptr;
   ds::Array<SpinLock>* edge_locks = nullptr;
-  vec<CAtomic<HyperedgeWeight>>* edge_weight_sum_per_partition = nullptr;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPart(PartitionID part) {
