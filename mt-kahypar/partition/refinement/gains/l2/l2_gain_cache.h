@@ -135,14 +135,17 @@ class L2GainCache {
     return quadratic_delta((*_edge_weight_sum_per_partition)[from].load(std::memory_order_relaxed), _gain_cache[penalty_index(u)].load(std::memory_order_relaxed));
   }
 
+  template<typename PartitionedHypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void recomputeAll(const PartitionedHypergraph& partitioned_hg);
+
   // ! Recomputes the penalty term entry in the gain cache
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void recomputeInvalidTerms(const PartitionedHypergraph& partitioned_hg,
                              const HypernodeID u) {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    _gain_cache[penalty_index(u)].store(recomputePenaltyTerm(
-      partitioned_hg, u), std::memory_order_relaxed);
+    recomputeAll(partitioned_hg);
   }
 
   // ! Returns the benefit term for moving node u to block to.
@@ -230,7 +233,7 @@ class L2GainCache {
 
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight recomputePenaltyTerm(const PartitionedHypergraph& partitioned_hg,
+  HyperedgeWeight recomputePenaltyWeight(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID u) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     const PartitionID block_of_u = partitioned_hg.partID(u);
@@ -252,7 +255,14 @@ class L2GainCache {
 
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight recomputeBenefitTerm(const PartitionedHypergraph& partitioned_hg,
+  HyperedgeWeight recomputePenaltyTerm(const PartitionedHypergraph& partitioned_hg,
+                                       const HypernodeID u) const {
+	return quadratic_delta((*_edge_weight_sum_per_partition)[partitioned_hg.partID(u)].load(std::memory_order_relaxed), recomputePenaltyWeight(partitioned_hg, u));
+  }
+
+  template<typename PartitionedHypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight recomputeBenefitWeight(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID u,
                                        const PartitionID to) const {
     HyperedgeWeight benefit = 0;
@@ -269,6 +279,14 @@ class L2GainCache {
 	  }
     }
     return benefit;
+  }
+
+  template<typename PartitionedHypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight recomputeBenefitTerm(const PartitionedHypergraph& partitioned_hg,
+                                       const HypernodeID u,
+                                       const PartitionID to) const {
+	return -quadratic_delta((*_edge_weight_sum_per_partition)[to].load(std::memory_order_relaxed), recomputeBenefitWeight(partitioned_hg, u, to));
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
@@ -372,6 +390,7 @@ class DeltaL2GainCache {
   void clear() {
     _gain_cache_delta.clear();
     _delta_edge_weight_sum_per_partition.clear();
+    _delta_edge_weight_sum_per_partition.resize(_gain_cache._k);
   }
 
   void dropMemory() {

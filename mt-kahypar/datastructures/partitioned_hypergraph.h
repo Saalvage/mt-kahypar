@@ -620,20 +620,6 @@ class PartitionedHypergraph {
       sync_update.edge_locks = &_pin_count_update_ownership;
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
-
-        if (_part_metric_contribution.empty()) continue;
-        
-        if (sync_update.pin_count_in_from_part_after == 0) {
-			_part_metric_contribution[from].fetch_sub(sync_update.edge_weight, std::memory_order_relaxed);
-        } else if (sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1) {
-			_part_metric_contribution[from].fetch_add(sync_update.edge_weight, std::memory_order_relaxed);
-        }
-
-        if (sync_update.pin_count_in_to_part_after == sync_update.edge_size) {
-            _part_metric_contribution[to].fetch_sub(sync_update.edge_weight, std::memory_order_relaxed);
-        } else if (sync_update.pin_count_in_to_part_after == 1) {
-            _part_metric_contribution[to].fetch_add(sync_update.edge_weight, std::memory_order_relaxed);
-        }
       }
 
       return true;

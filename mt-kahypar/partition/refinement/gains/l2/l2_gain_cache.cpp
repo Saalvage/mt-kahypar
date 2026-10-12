@@ -48,19 +48,24 @@ void L2GainCache::initializeGainCache(const PartitionedHypergraph& partitioned_h
   }
 
   // TODO: Optimize.
-  tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), partitioned_hg.initialNumNodes()),
-    [&](tbb::blocked_range<HypernodeID>& r) {
-      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        if ( partitioned_hg.nodeIsEnabled(u)) {
-		  _gain_cache[penalty_index(u)].store(recomputePenaltyTerm(partitioned_hg, u), std::memory_order_relaxed);
-          for (PartitionID to = 0; to < _k; ++to) {
-            _gain_cache[benefit_index(u, to)].store(recomputeBenefitTerm(partitioned_hg, u, to), std::memory_order_relaxed);
-          }
-        }
-      }
-    });
-
   _is_initialized = true;
+  recomputeAll(partitioned_hg);
+}
+
+template<typename PartitionedHypergraph>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+void L2GainCache::recomputeAll(const PartitionedHypergraph& partitioned_hg) {
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), partitioned_hg.initialNumNodes()),
+        [&](tbb::blocked_range<HypernodeID>& r) {
+            for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+                if (partitioned_hg.nodeIsEnabled(u)) {
+                    _gain_cache[penalty_index(u)].store(recomputePenaltyWeight(partitioned_hg, u), std::memory_order_relaxed);
+                    for (PartitionID to = 0; to < _k; ++to) {
+                        _gain_cache[benefit_index(u, to)].store(recomputeBenefitWeight(partitioned_hg, u, to), std::memory_order_relaxed);
+                    }
+                }
+            }
+        });
 }
 
 bool L2GainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
@@ -103,7 +108,6 @@ void L2GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
             ASSERT(nodeGainAssertions(u, from));
             _gain_cache[benefit_index(u, from)].fetch_add(edge_weight, std::memory_order_relaxed);
         }
-        (*sync_update.edge_weight_sum_per_partition)[from].fetch_sub(edge_weight, std::memory_order_relaxed);
     }
 
     if (pin_count_in_to_part_after == 1) {
@@ -111,7 +115,6 @@ void L2GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
             ASSERT(nodeGainAssertions(u, to));
             _gain_cache[benefit_index(u, to)].fetch_sub(edge_weight, std::memory_order_relaxed);
         }
-        (*sync_update.edge_weight_sum_per_partition)[to].fetch_add(edge_weight, std::memory_order_relaxed);
     } else if (pin_count_in_to_part_after == 2) {
         for (const HypernodeID& u : partitioned_hg.pins(he)) {
             ASSERT(nodeGainAssertions(u, to));
@@ -127,7 +130,6 @@ void L2GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
             _gain_cache[penalty_index(u)].fetch_sub(edge_weight, std::memory_order_relaxed);
             _gain_cache[benefit_index(u, from)].fetch_sub(edge_weight, std::memory_order_relaxed);
         }
-        (*sync_update.edge_weight_sum_per_partition)[from].fetch_add(edge_weight, std::memory_order_relaxed);
     } else if (pin_count_in_from_part_after == edge_size - 2) {
         for (const HypernodeID& u : partitioned_hg.pins(he)) {
             ASSERT(nodeGainAssertions(u, from));
@@ -141,7 +143,6 @@ void L2GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
             _gain_cache[penalty_index(u)].fetch_add(edge_weight, std::memory_order_relaxed);
             _gain_cache[benefit_index(u, to)].fetch_add(edge_weight, std::memory_order_relaxed);
         }
-        (*sync_update.edge_weight_sum_per_partition)[to].fetch_sub(edge_weight, std::memory_order_relaxed);
     } else if (pin_count_in_to_part_after == edge_size - 1) {
         for (const HypernodeID& u : partitioned_hg.pins(he)) {
             ASSERT(nodeGainAssertions(u, to));
