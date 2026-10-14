@@ -431,7 +431,8 @@ class AGainCache : public Test {
 };
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
-                         TestConfig<StaticHypergraphTypeTraits, CutGainTypes>
+                         TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
+                         TestConfig<StaticHypergraphTypeTraits, L2GainTypes>
                          ENABLE_SOED(COMMA TestConfig<StaticHypergraphTypeTraits COMMA SoedGainTypes>)
                          ENABLE_STEINER_TREE(COMMA TestConfig<StaticHypergraphTypeTraits COMMA SteinerTreeGainTypes>)
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)

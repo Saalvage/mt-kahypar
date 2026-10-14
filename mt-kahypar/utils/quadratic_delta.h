@@ -9,7 +9,7 @@ template <>
 struct quadratic_delta_t<0> {
 	template <typename F>
 	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F a, F delta) {
+	static F compute(F, F) {
 		return 0;
 	}
 };
@@ -18,7 +18,7 @@ template <>
 struct quadratic_delta_t<1> {
 	template <typename F>
 	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F a, F delta) {
+	static F compute(F, F delta) {
 		return delta;
 	}
 };

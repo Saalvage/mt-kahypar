@@ -273,10 +273,10 @@ class L2GainCache {
       }
 	  const HypernodeID pin_count = partitioned_hg.pinCountInPart(e, to);
       if (pin_count == edge_size - 1) {
+        benefit -= partitioned_hg.edgeWeight(e);
+      } else if (pin_count == 0) {
         benefit += partitioned_hg.edgeWeight(e);
-	  } else if (pin_count == 0) {
-		benefit -= partitioned_hg.edgeWeight(e);
-	  }
+      }
     }
     return benefit;
   }
