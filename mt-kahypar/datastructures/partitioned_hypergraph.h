@@ -800,9 +800,10 @@ class PartitionedHypergraph {
   void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
-            [&] { initializePinCountInPart(); },
-            [&] { initializeBlockMetricContributions(); }
+            [&] { initializePinCountInPart(); }
     );
+    // Depends on pin counts being initialized.
+    initializeBlockMetricContributions();
   }
 
   // ! Reset partition (not thread-safe)
