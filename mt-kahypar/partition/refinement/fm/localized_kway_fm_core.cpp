@@ -65,7 +65,7 @@ namespace mt_kahypar {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
   heaviestPartAndWeight(const Partition& partition, const PartitionID k) {
     PartitionID p = kInvalidPartition;
-    HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
+    HypernodeWeight w = std::numeric_limits<HypernodeWeight>::lowest();
     for (PartitionID i = 0; i < k; ++i) {
       if (partition.partWeight(i) > w) {
         w = partition.partWeight(i);

@@ -97,6 +97,8 @@ void register_policies() {
   // //////////////////////////////////////////////////////////////////////////////
   REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
   REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
+  REGISTER_POLICY(GainPolicy, GainPolicy::bottleneck, BottleneckGainTypes);
+  REGISTER_POLICY(GainPolicy, GainPolicy::l2, L2GainTypes);
   #ifdef KAHYPAR_ENABLE_SOED_METRIC
   REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
   #endif

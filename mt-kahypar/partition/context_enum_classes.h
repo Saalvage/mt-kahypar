@@ -73,6 +73,8 @@ enum class Objective : uint8_t {
   cut,
   km1,
   soed,
+  bottleneck,
+  l2,
   steiner_tree,
   UNDEFINED
 };
@@ -81,6 +83,8 @@ enum class GainPolicy : uint8_t {
   km1,
   cut,
   soed,
+  bottleneck,
+  l2,
   steiner_tree,
   cut_for_graphs,
   steiner_tree_for_graphs,

@@ -56,7 +56,7 @@ namespace impl {
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::lowest();
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
@@ -79,7 +79,7 @@ namespace impl {
       }
     }
 
-    Gain gain = std::numeric_limits<Gain>::min();
+    Gain gain = std::numeric_limits<Gain>::lowest();
     if (to != kInvalidPartition) {
       gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
     }
@@ -93,7 +93,7 @@ namespace impl {
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::lowest();
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
@@ -322,7 +322,7 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   void AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                        int64_t& attributed_gain,
+                                                        Gain& attributed_gain,
                                                         size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     size_t num_overloaded_blocks = _overloaded_blocks.size();
@@ -448,7 +448,7 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
 
-    int64_t attributed_gain = 0;
+    Gain attributed_gain = 0;
     size_t global_move_id = 0;
     _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain, [&](const Move& m) {
       bool success = phg.changeNodePart(
