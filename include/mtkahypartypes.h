@@ -82,8 +82,8 @@ typedef struct {
 
 typedef uint64_t mt_kahypar_hypernode_id_t;
 typedef uint64_t mt_kahypar_hyperedge_id_t;
-typedef int32_t mt_kahypar_hypernode_weight_t;
-typedef int32_t mt_kahypar_hyperedge_weight_t;
+typedef int64_t mt_kahypar_hypernode_weight_t;
+typedef int64_t mt_kahypar_hyperedge_weight_t;
 typedef int32_t mt_kahypar_partition_id_t;
 
 /**
