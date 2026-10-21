@@ -618,6 +618,7 @@ class PartitionedHypergraph {
       sync_update.to = to;
       sync_update.target_graph = _target_graph;
       sync_update.edge_locks = &_pin_count_update_ownership;
+      sync_update.moved_node = u;
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
       }

@@ -40,6 +40,7 @@ struct SynchronizedEdgeUpdate {
   HyperedgeID he = kInvalidHyperedge;
   PartitionID from = kInvalidPartition;
   PartitionID to = kInvalidPartition;
+  HypernodeID moved_node = kInvalidHypernode;
   HyperedgeWeight edge_weight = 0;
   HypernodeID edge_size = 0;
   HypernodeID pin_count_in_from_part_after = kInvalidHypernode;

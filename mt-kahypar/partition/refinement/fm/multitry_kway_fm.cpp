@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/utils/approx_equal.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -215,7 +216,7 @@ namespace mt_kahypar {
     metrics.quality -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    ASSERT(metrics.quality == metrics::quality(phg, context),
+    ASSERT((ApproxEqual{metrics.quality, metrics::quality(phg, context)}),
            V(metrics.quality) << V(metrics::quality(phg, context)));
 
     return overall_improvement > 0;

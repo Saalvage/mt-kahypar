@@ -69,7 +69,11 @@ public:
     vertexPQs(static_cast<size_t>(context.partition.k),
       VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) {
     const bool top_level = context.type == ContextType::main;
-    delta_gain_cache.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+    if constexpr (requires { delta_gain_cache.initialize(deltaPhg, top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA); }) {
+      delta_gain_cache.initialize(deltaPhg, top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+    } else {
+      delta_gain_cache.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+    }
   }
 
   template<typename DispatchedFMStrategy>

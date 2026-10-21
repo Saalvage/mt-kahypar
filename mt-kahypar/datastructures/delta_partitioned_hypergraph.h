@@ -80,6 +80,7 @@ class DeltaPartitionedHypergraph {
     _k(context.partition.k),
     _phg(nullptr),
     _part_weights_delta(context.partition.k, 0),
+    _part_metric_contribution_delta(context.partition.k, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
     _connectivity_set_delta(context.partition.k) {
@@ -205,6 +206,7 @@ class DeltaPartitionedHypergraph {
       sync_update.from = from;
       sync_update.to = to;
       sync_update.target_graph = _phg->targetGraph();
+      sync_update.moved_node = u;
       for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
         sync_update.he = he;
         sync_update.edge_weight = edgeWeight(he);
@@ -214,6 +216,17 @@ class DeltaPartitionedHypergraph {
         if constexpr ( maintain_connectivity_set ) {
           updateConnectivitySet(he, sync_update);
           sync_update.connectivity_set_after = &deepCopyOfConnectivitySet(he);
+        }
+        if (sync_update.pin_count_in_from_part_after == 0) {
+          sync_update.from_part_edge_sum_before = _phg->partSumCutEdgeWeight(from) + (_part_metric_contribution_delta[from] -= sync_update.edge_weight);
+        } else if (sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1) {
+          sync_update.from_part_edge_sum_before = _phg->partSumCutEdgeWeight(from) +  (_part_metric_contribution_delta[from] += sync_update.edge_weight);
+        }
+
+        if (sync_update.pin_count_in_to_part_after == sync_update.edge_size) {
+          sync_update.to_part_edge_sum_before = _phg->partSumCutEdgeWeight(to) + (_part_metric_contribution_delta[to] -= sync_update.edge_weight);
+        } else if (sync_update.pin_count_in_to_part_after == 1) {
+          sync_update.to_part_edge_sum_before = _phg->partSumCutEdgeWeight(to) + (_part_metric_contribution_delta[to] += sync_update.edge_weight);
         }
         delta_func(sync_update);
       }
@@ -251,6 +264,16 @@ class DeltaPartitionedHypergraph {
     return _phg->partWeight(p) + _part_weights_delta[p];
   }
 
+  // ! Sum of all cut edges of a block
+  HyperedgeWeight partSumCutEdgeWeight(const PartitionID p) const {
+    ASSERT(p != kInvalidPartition && p < _k);
+    return _phg->partSumCutEdgeWeight(p) + _part_metric_contribution_delta[p];
+  }
+
+  const vec< HyperedgeWeight >& partSumCutEdgeWeightDeltas() const {
+    return _part_metric_contribution_delta;
+  }
+
   // ! Returns the number of pins of hyperedge e in block p
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID p) const {
     ASSERT(_phg);
@@ -279,6 +302,7 @@ class DeltaPartitionedHypergraph {
   void clear() {
     // O(k)
     _part_weights_delta.assign(_k, 0);
+    _part_metric_contribution_delta.assign(_k, 0);
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
@@ -307,6 +331,7 @@ class DeltaPartitionedHypergraph {
   void changeNumberOfBlocks(const PartitionID new_k) {
     if ( new_k > _k ) {
       _part_weights_delta.assign(new_k, 0);
+      _part_metric_contribution_delta.assign(new_k, 0);
     }
     _connectivity_set_delta.setNumberOfBlocks(new_k);
     _k = new_k;
@@ -359,6 +384,8 @@ class DeltaPartitionedHypergraph {
 
   // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;
+
+  vec< HyperedgeWeight > _part_metric_contribution_delta;
 
   // ! Stores for each locally moved node, its new block id
   DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;

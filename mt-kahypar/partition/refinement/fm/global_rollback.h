@@ -62,7 +62,7 @@ public:
                                      FMSharedData& sharedData,
                                      const vec<HypernodeWeight>& partWeights,
                                      const std::vector<HypernodeWeight>& maxPartWeights) {
-    if (context.refinement.fm.rollback_parallel) {
+    if (false) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
       return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
