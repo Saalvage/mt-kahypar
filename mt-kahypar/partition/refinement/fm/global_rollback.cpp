@@ -280,8 +280,10 @@ namespace mt_kahypar {
       sync_update.to = m.from;
       sync_update.pin_count_in_from_part_after = sync_update.decrementPinCountInPart(sync_update.from);
       sync_update.pin_count_in_to_part_after = sync_update.incrementPinCountInPart(sync_update.to);
-      sync_update.from_part_edge_sum_before = phg.partSumCutEdgeWeight(sync_update.from);
-      sync_update.to_part_edge_sum_before = phg.partSumCutEdgeWeight(sync_update.to);
+      if constexpr (requires { phg.partSumCutEdgeWeight(sync_update.from); }) {
+        sync_update.from_part_edge_sum_before = phg.partSumCutEdgeWeight(sync_update.from);
+        sync_update.to_part_edge_sum_before = phg.partSumCutEdgeWeight(sync_update.to);
+      }
       // This is the gain for reverting the move.
       const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
       // For recomputed gains, a postive gain means improvement. However, the opposite
