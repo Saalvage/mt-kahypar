@@ -210,7 +210,7 @@ template<typename HashFunction>
 struct HashRNG {
   using result_type = typename HashFunction::hash_type;
   explicit HashRNG(HashFunction& hash, result_type seed) : hash(hash), state(hash(seed)), counter(0) { }
-  static constexpr result_type min() { return std::numeric_limits<result_type>::min(); }
+  static constexpr result_type min() { return std::numeric_limits<result_type>::lowest(); }
   static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
 
   // don't do too many calls of this

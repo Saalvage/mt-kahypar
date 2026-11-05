@@ -371,7 +371,7 @@ class SteinerTreeGainCache {
   }
 
   vec<Gain> initializeBenefitAggregator() const {
-    return vec<Gain>(_k, std::numeric_limits<Gain>::min());
+    return vec<Gain>(_k, std::numeric_limits<Gain>::lowest());
   }
 
   // ! Indicate whether or not the gain cache is initialized

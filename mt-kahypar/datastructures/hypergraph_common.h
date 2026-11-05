@@ -54,8 +54,8 @@ using HyperedgeID = uint32_t;
 // louvain graph
 using NodeID = uint32_t;
 #endif
-using HypernodeWeight = int64_t;
-using HyperedgeWeight = int64_t;
+using HypernodeWeight = double;
+using HyperedgeWeight = double;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
@@ -78,11 +78,11 @@ struct Arc {
 static constexpr PartitionID kInvalidPartition = -1;
 static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
-static constexpr Gain kInvalidGain = std::numeric_limits<HyperedgeID>::min();
+static constexpr Gain kInvalidGain = std::numeric_limits<Gain>::lowest();
 static constexpr size_t kEdgeHashSeed = 42;
 
 static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max();
-static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
+static constexpr Gain invalidGain = std::numeric_limits<Gain>::lowest();
 
 namespace ds {
   using Clustering = vec<PartitionID>;

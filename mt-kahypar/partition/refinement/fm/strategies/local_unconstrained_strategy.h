@@ -244,7 +244,7 @@ private:
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::lowest();
     HypernodeWeight best_to_weight = from_weight - wu;
     for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
       if (i != from) {
@@ -272,7 +272,7 @@ private:
     }
     ASSERT(from == phg.partID(u));
     const Gain gain = to != kInvalidPartition ? to_benefit - gain_cache.penaltyTerm(u, from)
-                                              : std::numeric_limits<HyperedgeWeight>::min();
+                                              : std::numeric_limits<HyperedgeWeight>::lowest();
     return std::make_pair(to, gain);
   }
 
@@ -287,7 +287,7 @@ private:
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::lowest();
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
@@ -318,7 +318,7 @@ private:
     }
     ASSERT(from == phg.partID(u));
     const Gain gain = to != kInvalidPartition ? to_benefit - gain_cache.penaltyTerm(u, from)
-                                              : std::numeric_limits<HyperedgeWeight>::min();
+                                              : std::numeric_limits<HyperedgeWeight>::lowest();
     return std::make_pair(to, gain);
   }
 
