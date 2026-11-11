@@ -1244,6 +1244,13 @@ class PartitionedHypergraph {
     });*/
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID heaviestPart() const {
+    return std::max_element(_part_metric_contribution.begin(), _part_metric_contribution.end(),
+        [](const CAtomic<HyperedgeWeight>& a, const CAtomic<HyperedgeWeight>& b) {
+          return a.load(std::memory_order_relaxed) < b.load(std::memory_order_relaxed);
+        }) - _part_metric_contribution.begin();
+  }
+
  private:
   void applyPartWeightUpdates(vec<HypernodeWeight>& part_weight_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
@@ -1309,6 +1316,20 @@ class PartitionedHypergraph {
     return pcip;
   }
 
+  struct MutexWrapper {
+    std::mutex mutex;
+
+    MutexWrapper() { }
+
+    MutexWrapper(const MutexWrapper&) { }
+    MutexWrapper(MutexWrapper&&) { }
+
+    MutexWrapper& operator=(const MutexWrapper&) { return *this; }
+    MutexWrapper& operator=(MutexWrapper&&) { return *this; }
+  };
+
+  MutexWrapper _idk;
+
   // ! Updates pin count in part using a spinlock.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
                                                                     const PartitionID from,
@@ -1328,6 +1349,11 @@ class PartitionedHypergraph {
     sync_update.pin_counts_after = hasTargetGraph() ? &_con_info.pinCountSnapshot(he) : nullptr;
     _pin_count_update_ownership[he].unlock();
     if (!_part_metric_contribution.empty()) {
+      std::unique_lock lk{_idk.mutex};
+
+      PartitionID heaviest = heaviestPart();
+      HyperedgeWeight old_weight = _part_metric_contribution[heaviest].load(std::memory_order_relaxed);
+
       if (sync_update.pin_count_in_from_part_after == 0) {
         sync_update.from_part_edge_sum_before = _part_metric_contribution[from].fetch_sub(
           sync_update.edge_weight, std::memory_order_relaxed);
@@ -1343,6 +1369,10 @@ class PartitionedHypergraph {
         sync_update.to_part_edge_sum_before = _part_metric_contribution[to].fetch_add(
           sync_update.edge_weight, std::memory_order_relaxed);
       }
+      PartitionID new_heaviest = heaviestPart();
+      HyperedgeWeight new_weight = partSumCutEdgeWeight(new_heaviest);
+
+      sync_update.bottleneck_change = new_weight - old_weight;
     }
     delta_func(sync_update);
   }
@@ -1390,17 +1420,7 @@ class PartitionedHypergraph {
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > _part_weights;
 
-  struct MutexWrapper {
-    std::mutex mutex;
-
-    MutexWrapper() { }
-
-    MutexWrapper(const MutexWrapper&) { }
-    MutexWrapper(MutexWrapper&&) { }
-
-    MutexWrapper& operator=(const MutexWrapper&) { return *this; }
-    MutexWrapper& operator=(MutexWrapper&&) { return *this; }
-  } _blockMetricContributionInitializationLock;
+  MutexWrapper _blockMetricContributionInitializationLock;
   vec< CAtomic<HyperedgeWeight> > _part_metric_contribution;
 
   // ! Current block IDs of the vertices

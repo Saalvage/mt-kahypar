@@ -49,6 +49,8 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
 #endif
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_cache.h"
@@ -105,8 +107,8 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 #endif
 
 struct BottleneckGainTypes : public kahypar::meta::PolicyBase {
-  using GainComputation = CutGainComputation;
-  using AttributedGains = CutAttributedGains;
+  using GainComputation = BottleneckGainComputation;
+  using AttributedGains = BottleneckAttributedGains;
   using GainCache = CutGainCache;
   using DeltaGainCache = DeltaCutGainCache;
   using Rollback = CutRollback;
