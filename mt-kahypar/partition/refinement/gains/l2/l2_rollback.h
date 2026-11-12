@@ -69,12 +69,17 @@ class L2Rollback {
   static void updateMove(const MoveID m_id,
                          const Move& m,
                          vec<RecalculationData>& r) {
+      (void)m_id;
+      (void)m;
+      (void)r;
       throw 2;
   }
 
   // Updates the number of non-moved in a block.
   static void updateNonMovedPinInBlock(const PartitionID block,
                                        vec<RecalculationData>& r) {
+      (void)block;
+      (void)r;
       throw 2;
   }
 
@@ -84,8 +89,11 @@ class L2Rollback {
                                  const MoveID m_id,
                                  const Move& m,
                                  vec<RecalculationData>& r) {
-    const HyperedgeWeight edge_weight = phg.edgeWeight(e);
-    const HypernodeID edge_size = phg.edgeSize(e);
+    (void)phg;
+    (void)e;
+    (void)m_id;
+    (void)m;
+    (void)r;
     throw 2;
   }
 
@@ -95,8 +103,11 @@ class L2Rollback {
                                  const MoveID m_id,
                                  const Move& m,
                                  vec<RecalculationData>& r) {
-    const HyperedgeWeight edge_weight = phg.edgeWeight(e);
-    const HypernodeID edge_size = phg.edgeSize(e);
+    (void)phg;
+    (void)e;
+    (void)m_id;
+    (void)m;
+    (void)r;
     throw 2;
   }
 };

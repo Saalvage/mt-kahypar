@@ -161,6 +161,11 @@ void L2GainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph& part
                                                 const HypernodeID v,
                                                 const HyperedgeID he,
                                                 const HypernodeID pin_count_in_part_after) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)v;
+  (void)he;
+  (void)pin_count_in_part_after;
   throw 2;
 }
 
@@ -169,6 +174,10 @@ void L2GainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph& 
                                                     const HypernodeID u,
                                                     const HypernodeID v,
                                                     const HyperedgeID he) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)v;
+  (void)he;
   throw 2;
 }
 
@@ -176,6 +185,9 @@ template<typename PartitionedHypergraph>
 void L2GainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
                                                    const HypernodeID u,
                                                    vec<Gain>& benefit_aggregator) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)benefit_aggregator;
   throw 2;
 }
 
