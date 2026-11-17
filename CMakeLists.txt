@@ -117,7 +117,7 @@ option(KAHYPAR_USE_GCOV "Compile and run tests with gcov for coverage analysis."
 
 
 # metric configuration
-option(KAHYPAR_LX_NORM "The L norm used for the LX metric. Must be a positive integer." 2)
+set(KAHYPAR_LX_NORM 2 CACHE STRING "The L norm used for the LX metric. Must be a positive integer.")
 
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC AND NOT KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   message(FATAL_ERROR "Steiner tree metric requires graph features. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On to your cmake command")
