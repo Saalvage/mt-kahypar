@@ -62,6 +62,9 @@ namespace mt_kahypar {
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
+    if ( params.objective == Objective::l2 ) {
+      str << "  L norm:                             " << MT_KAHYPAR_LX_NORM << std::endl;
+    }
     str << "  seed:                               " << params.seed << std::endl;
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
     str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;

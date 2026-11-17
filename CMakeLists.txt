@@ -116,6 +116,9 @@ option(KAHYPAR_CI_BUILD "Indicate that this build is executed on GitHub Actions.
 option(KAHYPAR_USE_GCOV "Compile and run tests with gcov for coverage analysis." OFF)
 
 
+# metric configuration
+option(KAHYPAR_LX_NORM "The L norm used for the LX metric. Must be a positive integer." 2)
+
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC AND NOT KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   message(FATAL_ERROR "Steiner tree metric requires graph features. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On to your cmake command")
 endif()
@@ -399,6 +402,9 @@ if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
     )
   endif()
 endif()
+
+target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+    MT_KAHYPAR_LX_NORM=${KAHYPAR_LX_NORM})
 
 
 #################################################################
