@@ -10,7 +10,7 @@ T pow_impl(T value, std::index_sequence<pack...>) {
 	if constexpr (sizeof...(pack) == 0) {
 		return T{1};
 	} else {
-		return ((pack, value) * ...);
+		return (((void)pack, value) * ...);
 	}
 }
 

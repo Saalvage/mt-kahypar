@@ -474,7 +474,11 @@ TYPED_TEST(AGainCache, HasCorrectGainsAfterMovingAllNodesAtRandom) {
 TYPED_TEST(AGainCache, HasCorrectGainsAfterMovingAllNodesOnDeltaPartitionAtRandom) {
   this->initializePartition();
   this->gain_cache.initializeGainCache(this->partitioned_hg);
-  this->delta_gain_cache->initialize(8192);
+  if constexpr ( requires { this->delta_gain_cache->initialize(8192); } ) {
+    this->delta_gain_cache->initialize(8192);
+  } else {
+    this->delta_gain_cache->initialize(*this->delta_phg, 8192);
+  }
   this->moveAllNodesAtRandomOnDeltaPartition();
   this->verifyGainCacheEntriesOnDeltaPartition();
 }
