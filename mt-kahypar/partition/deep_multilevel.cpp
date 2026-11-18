@@ -431,7 +431,7 @@ const DeepPartitioningResult<TypeTraits>& select_best_partition(
   const PartitionID k,
   const RBTree& rb_tree) {
   vec<HyperedgeWeight> objectives(partitions.size(), 0);
-  vec<bool> isBalanced(partitions.size(), false);
+  vec<uint8_t> isBalanced(partitions.size(), static_cast<uint8_t>(false));
 
   // Compute objective value and perform balance check for each partition
   tbb::task_group tg;
@@ -439,7 +439,7 @@ const DeepPartitioningResult<TypeTraits>& select_best_partition(
     tg.run([&, i] {
       objectives[i] = metrics::quality(
         partitions[i].partitioned_hg, context);
-      isBalanced[i] = is_balanced(partitions[i].partitioned_hg, k, rb_tree);
+      isBalanced[i] = static_cast<uint8_t>(is_balanced(partitions[i].partitioned_hg, k, rb_tree));
     });
   }
   tg.wait();
@@ -829,16 +829,15 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
-  if (uncoarseningData.nlevel) {
+  ALWAYS_ASSERT(uncoarseningData.nlevel == !Hypergraph::is_static_hypergraph);
+  if constexpr ( Hypergraph::is_static_hypergraph ) {
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+      hypergraph, context, uncoarseningData, nullptr);
+  } else {
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, nullptr);
-    #else
-      throw InvalidParameterException("NLevel features are deactivated.");
     #endif
-  } else {
-    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
-      hypergraph, context, uncoarseningData, nullptr);
   }
   uncoarsener->initialize();
 

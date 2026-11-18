@@ -28,16 +28,17 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <stack>
 #include <vector>
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 
@@ -117,7 +118,7 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
-                        const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
@@ -138,9 +139,6 @@ class MultilevelVertexPairRater {
     }
   }
 
-  // ! Several threads will mark matches in parallel. However, since
-  // ! we only set the corresponding value to true this function is
-  // ! thread-safe.
   void markAsMatched(const HypernodeID original_id) {
     _already_matched.set(original_id, true);
   }
@@ -162,7 +160,7 @@ class MultilevelVertexPairRater {
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
-                        const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
 
@@ -177,11 +175,9 @@ class MultilevelVertexPairRater {
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
-    HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
-      const HypernodeID tmp_target_id = it->key;
-      const HypernodeID tmp_target = tmp_target_id;
-      const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
+      const HypernodeID tmp_target = it->key;
+      const HypernodeWeight target_weight = cluster_weight[tmp_target];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
@@ -199,9 +195,8 @@ class MultilevelVertexPairRater {
         if ( accept_fixed_vertex_contraction &&
              community_u_id == hypergraph.communityID(tmp_target) &&
              AcceptancePolicy::acceptRating( tmp_rating, max_rating,
-               target_id, tmp_target_id, cpu_id, _already_matched) ) {
+               target, tmp_target, cpu_id, _already_matched) ) {
           max_rating = tmp_rating;
-          target_id = tmp_target_id;
           target = tmp_target;
         }
       }
@@ -226,7 +221,7 @@ class MultilevelVertexPairRater {
     if constexpr (Hypergraph::is_graph) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
         const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
-        const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
+        const HypernodeID representative = parallel::atomic_load(cluster_ids[hypergraph.edgeTarget(he)], std::memory_order_relaxed);
         ASSERT(representative < hypergraph.initialNumNodes());
         tmp_ratings[representative] += score;
       }
@@ -241,7 +236,7 @@ class MultilevelVertexPairRater {
           const RatingType score = ScorePolicy::score(
             hypergraph.edgeWeight(he), edge_size);
           for ( const HypernodeID& v : hypergraph.pins(he) ) {
-            const HypernodeID representative = cluster_ids[v];
+            const HypernodeID representative = parallel::atomic_load(cluster_ids[v], std::memory_order_relaxed);
             ASSERT(representative < hypergraph.initialNumNodes());
             const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
             if ( !bloom_filter[bloom_filter_rep] ) {
@@ -269,7 +264,7 @@ class MultilevelVertexPairRater {
           break;
         }
         const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
-        const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
+        const HypernodeID representative = parallel::atomic_load(cluster_ids[hypergraph.edgeTarget(he)], std::memory_order_relaxed);
         ASSERT(representative < hypergraph.initialNumNodes());
         tmp_ratings[representative] += score;
         ++num_tmp_rating_map_accesses;
@@ -289,7 +284,7 @@ class MultilevelVertexPairRater {
           const RatingType score = ScorePolicy::score(
             hypergraph.edgeWeight(he), edge_size);
           for ( const HypernodeID& v : hypergraph.pins(he) ) {
-            const HypernodeID representative = cluster_ids[v];
+            const HypernodeID representative = parallel::atomic_load(cluster_ids[v], std::memory_order_relaxed);
             ASSERT(representative < hypergraph.initialNumNodes());
             const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
             if ( !bloom_filter[bloom_filter_rep] ) {
@@ -311,7 +306,7 @@ class MultilevelVertexPairRater {
                                       const parallel::scalable_vector<HypernodeID>& cluster_ids) {
     HypernodeID edge_size = 0;
     for ( const HypernodeID& v : hypergraph.pins(he) ) {
-      const HypernodeID representative = cluster_ids[v];
+      const HypernodeID representative = parallel::atomic_load(cluster_ids[v], std::memory_order_relaxed);
       ASSERT(representative < hypergraph.initialNumNodes());
       const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
       if ( !bloom_filter[bloom_filter_rep] ) {
@@ -405,6 +400,6 @@ class MultilevelVertexPairRater {
   ThreadLocalFastResetFlagArray _local_bloom_filter;
 
   // ! Marks all matched vertices
-  kahypar::ds::FastResetFlagArray<> _already_matched;
+  ds::ThreadSafeFastResetFlagArray<> _already_matched;
 };
 }  // namespace mt_kahypar

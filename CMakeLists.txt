@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.26)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 # define the project version
-set(MT_KAHYPAR_VERSION "1.6.2")
+set(MT_KAHYPAR_VERSION "1.7.1")
+set(MT_KAHYPAR_VERSION_SUFFIX "")
 string(SUBSTRING "${MT_KAHYPAR_VERSION}" 0 1 MT_KAHYPAR_SO_VERSION)
 set(MTKAHYPAR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -37,34 +38,42 @@ if (NOT DEFINED BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS ON)
 endif()
 
+
 #################################################################
 ## Meta targets                                               ##
 #################################################################
 
+include(MtKaHyParHelpers)
+
 # meta targets for flags
-add_library(MtKaHyPar-BuildFlags INTERFACE)
+add_mtkahypar_library(MtKaHyPar-BuildFlags INTERFACE)
 target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_20)
 
 # meta targets for includes and source files
-add_library(MtKaHyPar-Include INTERFACE)
+add_mtkahypar_library(MtKaHyPar-Include INTERFACE)
 target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(MtKaHyPar-Sources INTERFACE)
+add_mtkahypar_library(MtKaHyPar-Sources INTERFACE)
 
-add_library(MtKaHyPar-ToolsSources INTERFACE)
+add_mtkahypar_library(MtKaHyPar-ToolsSources INTERFACE)
 
 # meta target for CLI/test build
-add_library(MtKaHyPar-BuildSources OBJECT "")
+add_mtkahypar_library(MtKaHyPar-BuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-BuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 # meta target for library build, which must be built with all features enabled
-add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
+add_mtkahypar_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
-                           KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-                           KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+                           KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
+                           KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+                           KAHYPAR_ENABLE_QUALITY_FEATURES
+                           KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+                           KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+                           KAHYPAR_ENABLE_SOED_METRIC
+                           KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 # building shared libraries requires position independent code
 if(BUILD_SHARED_LIBS)
   set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -90,15 +99,18 @@ option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact runnin
 
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
-option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
+option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to debug compile options." OFF)
+option(KAHYPAR_USE_THREAD_SANITIZER "Adds thread sanitizer to compile options (all build types). Disables address sanitizer if enabled." OFF)
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`, or `/arch:AVX` for `MSVC`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
 # algorithm features for CLI build (note: the library always contains all non-experimental features)
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_QUALITY_FEATURES "Enables (deterministic_)quality preset features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_DETERMINISTIC_FEATURES "Enables deterministic partitioning features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_SOED_METRIC "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_STEINER_TREE_METRIC "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES "Enables some experimental features. Can be turned off for faster compilation." OFF)
@@ -160,8 +172,15 @@ if(KAHYPAR_ENABLE_THREAD_PINNING AND KAHYPAR_DISABLE_HWLOC)
   message(WARNING "Thread pinning disabled since hwloc library is disabled.")
   set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
 endif()
+if(KAHYPAR_USE_THREAD_SANITIZER AND (KAHYPAR_CI_BUILD OR MSVC))
+  message(WARNING "Disabling thread sanitizer: not supported when compiling with MSVC")
+  set(KAHYPAR_USE_THREAD_SANITIZER FALSE CACHE STRING "" FORCE)
+endif()
+if(KAHYPAR_USE_ADDRESS_SANITIZER AND KAHYPAR_USE_THREAD_SANITIZER)
+  message(WARNING "Disabling address sanitizer since thread sanitizer and address sanitizer can not be used together.")
+  set(KAHYPAR_USE_ADDRESS_SANITIZER FALSE CACHE STRING "" FORCE)
+endif()
 
-include(CopyDeps)
 if(UNIX)
   include(CheckIncludeFiles)
   set(CMAKE_REQUIRED_QUIET TRUE)
@@ -225,13 +244,24 @@ if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
+if(KAHYPAR_ENABLE_QUALITY_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_QUALITY_FEATURES)
+endif(KAHYPAR_ENABLE_QUALITY_FEATURES)
+
 if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
+  if(NOT KAHYPAR_ENABLE_QUALITY_FEATURES)
+    message(WARNING "Highest quality features enabled; but highest_quality preset also requires quality features. Consider adding -DKAHYPAR_ENABLE_QUALITY_FEATURES=On")
+  endif()
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 endif(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 
 if(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+endif(KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
 
 if(KAHYPAR_ENABLE_SOED_METRIC)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_SOED_METRIC)
@@ -403,6 +433,11 @@ if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
   endif()
 endif()
 
+if(KAHYPAR_USE_THREAD_SANITIZER)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fsanitize=thread)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fsanitize=thread)
+endif()
+
 target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
     MT_KAHYPAR_LX_NORM=${KAHYPAR_LX_NORM})
 
@@ -412,12 +447,12 @@ target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
 #################################################################
 
 include(FetchContent)
-set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
-set(KAHYPAR_WHFC_TAG             dd3b7901f73ba9a1de44788172ded5ce33b83338)
+set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
+set(KAHYPAR_WHFC_TAG             d53f175660c54deebc65cdc10ec63a298841fd4c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
-set(KAHYPAR_CLI11_VERSION        v2.6.1)
-set(KAHYPAR_TBB_VERSION          v2022.0.0)
-set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
+set(KAHYPAR_CLI11_VERSION        v2.7.2)
+set(KAHYPAR_TBB_VERSION          v2023.1.0)
+set(KAHYPAR_GOOGLETEST_VERSION   v1.18.0)
 set(KAHYPAR_PYBIND11_VERSION     v3.0.4)
 
 message(STATUS "Fetching dependencies...")
@@ -468,7 +503,7 @@ if (KAHYPAR_ENABLE_TESTING)
   FetchContent_MakeAvailable(googletest)
   include(gmock)
 
-  add_library(MtKaHyPar-Test INTERFACE)
+  add_mtkahypar_library(MtKaHyPar-Test INTERFACE)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
 endif()
 if (KAHYPAR_ENABLE_TESTING OR KAHYPAR_PYTHON)
@@ -480,7 +515,7 @@ if(KAHYPAR_DOWNLOAD_TBB)
   # Download TBB library
   FetchContent_Declare(
     TBB EXCLUDE_FROM_ALL SYSTEM
-    GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
+    GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
     GIT_TAG        ${KAHYPAR_TBB_VERSION}
     GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
   )
@@ -491,9 +526,18 @@ if(KAHYPAR_DOWNLOAD_TBB)
       set(BUILD_SHARED_LIBS ON)
     endif()
     set(TBB_TEST OFF CACHE BOOL "")
+    if(KAHYPAR_USE_THREAD_SANITIZER)
+      set(TBB_SANITIZE "thread" CACHE STRING "" FORCE)
+    else()
+      unset(TBB_SANITIZE CACHE)
+    endif()
     FetchContent_MakeAvailable(TBB)
   endblock()
 else()
+  if(KAHYPAR_USE_THREAD_SANITIZER)
+    message(FATAL_ERROR "Thread sanitizer requires that TBB is built from source. "
+      "Add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command.")
+  endif()
   if(KAHYPAR_STATIC_LINK_TBB)
     message(WARNING "Static linking of TBB requires -DKAHYPAR_DOWNLOAD_TBB=On. Proceeding with dynamic linking.")
   endif()
@@ -544,7 +588,7 @@ add_subdirectory(dependencies)
 add_subdirectory(mt-kahypar)
 
 # export target for C interface
-add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
+add_mtkahypar_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
 
 
 #################################################################
@@ -590,6 +634,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
   if(KAHYPAR_SETUP_PYTHON AND DEFINED KAHYPAR_TBB_DIR)
     # preparation for python wheel
+    message(STATUS "Setting up Python build; version = ${PROJECT_VERSION}${MT_KAHYPAR_VERSION_SUFFIX}")
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml @ONLY)
   endif()
   if(KAHYPAR_PYTHON AND DEFINED SKBUILD_PROJECT_NAME)

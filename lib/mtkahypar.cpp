@@ -277,6 +277,10 @@ void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allo
   lib::initialize(num_threads, interleaved_allocations, false);
 }
 
+bool mt_kahypar_terminate() {
+  return lib::terminate();
+}
+
 void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
   free(const_cast<char*>(error->msg));
   error->status = mt_kahypar_status_t::SUCCESS;
@@ -551,8 +555,8 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hyper
   return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                             mt_kahypar_preset_type_t preset) {
+bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                              mt_kahypar_preset_type_t preset) {
   return lib::is_compatible(partitioned_hg, preset);
 }
 

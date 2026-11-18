@@ -143,10 +143,11 @@ struct ClusteringContext {
 
   bool finalize(const Hypergraph& current_hg, const Context& context) {
     if (fixed_vertices.hasFixedVertices()) {
-      ASSERT(fixed_vertices.verifyClustering(cluster_ids), "Fixed vertex support is corrupted");
+      ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
     }
     HEAVY_COARSENING_ASSERT(clustering_data.verifyClustering(current_hg, cluster_ids),
                             "Parallel clustering computed invalid cluster ids and weights");
+    unused(current_hg);
 
     const double reduction_vertices_percentage =
       static_cast<double>(num_hns_before_pass) / static_cast<double>(num_nodes_tracker.finalNumNodes());
@@ -161,7 +162,7 @@ struct ClusteringContext {
   HypernodeID num_hns_before_pass;
   HypernodeID previous_num_nodes;
   NumNodesTracker num_nodes_tracker;
-  ds::FixedVertexSupport<Hypergraph> fixed_vertices;
+  ds::FixedVertexSupport fixed_vertices;
 
   vec<HypernodeID>& cluster_ids;
   MultilevelVertexPairRater& rater;

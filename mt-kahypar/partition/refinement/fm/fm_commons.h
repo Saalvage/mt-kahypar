@@ -71,14 +71,14 @@ struct GlobalMoveTracker {
 
   MoveID insertMove(const Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
-    assert(move_id - firstMoveID < moveOrder.size());
+    ASSERT(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
     moveOfNode[m.node] = move_id;
     return move_id;
   }
 
   Move& getMove(MoveID move_id) {
-    assert(move_id - firstMoveID < moveOrder.size());
+    ASSERT(move_id - firstMoveID < moveOrder.size());
     return moveOrder[move_id - firstMoveID];
   }
 
@@ -111,7 +111,7 @@ struct NodeTracker {
 
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
-    assert(searchOfNode[u].load() == search_id);
+    ASSERT(searchOfNode[u].load() == search_id);
     unused(search_id);
     searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_release);
   }
@@ -121,7 +121,7 @@ struct NodeTracker {
   }
 
   void releaseNode(HypernodeID u) {
-    searchOfNode[u].store(releasedMarker, std::memory_order_relaxed);
+    searchOfNode[u].store(releasedMarker, std::memory_order_release);
   }
 
   bool isSearchInactive(SearchID search_id) const {
