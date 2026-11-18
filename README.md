@@ -1,8 +1,8 @@
 <h1 align="center">Mt-KaHyPar - Multi-Threaded Karlsruhe Graph and Hypergraph Partitioner</h1>
 
-License|Linux, MacOS & Windows Build|Code Coverage|Zenodo
-:--:|:--:|:--:|:--:
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)|[![Build Status](https://github.com/kahypar/mt-kahypar/actions/workflows/master_ci.yml/badge.svg)](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![DOI](https://zenodo.org/badge/205879380.svg)](https://zenodo.org/badge/latestdoi/205879380)
+License|Linux, MacOS & Windows Build|Code Coverage
+:--:|:--:|:--:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)|[![Build Status](https://github.com/kahypar/mt-kahypar/actions/workflows/master_ci.yml/badge.svg)](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)
 
 Table of Contents
 -----------
@@ -79,42 +79,40 @@ Mt-KaHyPar requires:
 
 ### Linux
 
-The following command will install most of the required dependencies on a Ubuntu machine:
+The following command will install the required dependencies on a Ubuntu machine:
 
     sudo apt-get install libtbb-dev libhwloc-dev
 
 ### MacOS
 
-The following command will install most of the required dependencies on a MacOS machine:
+The following command will install the required dependencies on a MacOS machine:
 
     brew install tbb hwloc
 
 ### Windows
 
+No manual installation of dependencies required.
 Build within a Developer Command Prompt, or ensure that MSVC is discoverable by `cmake`.
 
 ### Build Commands
 
 To build Mt-KaHyPar, use the following commands:
 
-1. Clone the repository including submodules:
-
-   ```git clone https://github.com/kahypar/mt-kahypar.git```
-
-1. Run cmake: `cmake -B build --preset=<default/python/dev>`
-2. Build: `cmake --build build --target MtKaHyPar -j 4`
+1. Clone the repository: `git clone https://github.com/kahypar/mt-kahypar.git`
+2. Inside the repository, run cmake: `cmake -B build --preset=<default/python/dev>`
+3. Build: `cmake --build build --target MtKaHyPar -j 4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
 As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
-If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
+If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` or `minimal-dev` preset.
 
 Running Mt-KaHyPar
 -----------
 
 To partition a **hypergraph** with our default configuration, use the following command:
 
-    ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> --preset-type=default -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=default -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
 
 Available options are described in more detail below. You can also use `--help` to print a summary of the most important options.
 
@@ -423,39 +421,37 @@ Supported Objective Functions
 -----------
 
 Mt-KaHyPar can optimize several objective functions which we explain in the following in more detail.
-
 ### Cut-Net Metric
 
-![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/bc7fc7c7-8ac4-4711-8aec-d0526ef2452c)
+$$\mathfrak{f}_c(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} \omega(e)$$
 
-The cut-net metric is defined as total weight of all nets spanning more than one block of the partition Π (also called *cut nets*).
-
+The cut-net metric is defined as total weight of all nets spanning more than one block of the partition $\Pi$ (also called *cut nets*).
 
 ### Connectivity Metric
 
-![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/1c586ff4-63c3-4260-9ef5-98a76578be46)
+$$\mathfrak{f}_{\lambda-1}(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} (\lambda(e)-1) \cdot \omega(e)$$
 
-The connectivity metric additionally multiplies the weight of each cut net with the number of blocks λ(e) spanned by that net minus one.
+The connectivity metric additionally multiplies the weight of each cut net with the number of blocks $\lambda(e)$ spanned by that net minus one.
 Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
 ### Sum-of-external-Degrees Metric
 
-![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/4006fb4c-ac85-452e-a0d9-93d4dc7842ad)
+$$\mathfrak{f}_s(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} \lambda(e) \cdot \omega(e)$$
 
-The sum-of-external-degrees metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net.
-A peculiarity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e).
+The sum-of-external-degrees metric is similar to the connectivity metric, but does not subtract one from the number of blocks $\lambda(e)$ spanned by a net.
+A peculiarity of this objective function is that removing a net from the cut reduces the metric by $2\omega(e)$, while reducing the connectivity by one reduces the metric only by $\omega(e)$.
 Thus, the objective function prefers removing nets from the cut, while as a secondary criterion, it tries to reduce the connectivity of the nets.
 
 ### Steiner Tree Metric
 
-![steiner_tree](https://github.com/kahypar/mt-kahypar/assets/9654047/926ef7d7-bb6b-4959-af0c-75ebd6f6299f)
+$$\mathfrak{f}_{ST} := \sum_{e \in E} \text{dist}_G(\Lambda(e)) \cdot \omega(e)$$
 
 The Steiner tree metric is the most versatile metric that we provide at the moment. A Steiner tree is a tree with minimal weight that connects a subset of the nodes on a graph (a more detailed definition can be found [here][SteinerTrees]).
 For a subset with exactly two nodes, finding a Steiner tree reverts to computing the shortest path between the two nodes.
 When optimizing the Steiner tree metric, we map the node set of a hypergraph H onto the nodes of a target graph G.
 The objective is to minimize the total weight of all Steiner trees induced by the nets of H on G.
-For a net e, dist(Λ(e)) is the weight of the minimal Steiner tree connecting the blocks Λ(e) spanned by net e on G.
+For a net $e$, $\text{dist}(\Lambda(e))$ is the weight of the minimal Steiner tree connecting the blocks $\Lambda(e)$ spanned by net $e$ on G.
 The Steiner tree metric can be used to accurately model wire-lengths in VLSI design or communication costs in distributed systems when some processors do not communicate with each other directly or with different speeds.
 
 Note that finding a Steiner tree is an NP-hard problem. We therefore enforce a strict upper bound on the number of nodes of the target graph G, which is 64 nodes at the moment.
@@ -473,14 +469,16 @@ Improving Compile Times
 
 Mt-KaHyPar implements several graph and hypergraph data structures, and supports different objective functions.
 In the hot parts of the algorithm, each combination of (hyper)graph data structure and objective function is compiled separately, which notably increases the compile time.
-We therefore provide the cmake preset `minimal` to disable some of the features of Mt-KaHyPar for faster compilation.
+We therefore provide the cmake preset `minimal` to disable some features for faster compilation.
 
-With this, only the `deterministic`, `deterministic_quality`, `default`, and `quality` configurations are available in combination with the cut-net or connectivity metric.
-Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
+With this, only the `default` configuration is available, in combination with the cut-net or connectivity metric.
+Using a disabled feature will throw an error. Note that you can't disable features in the C and Python interface.
 
 For more fine-grained control, you can directly use the corresponding cmake flags:
 ```cmake
 -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On/Off # enables/disables graph partitioning features
+-DKAHYPAR_ENABLE_DETERMINISTIC_FEATURES=On/Off # enables/disables our deterministic configurations
+-DKAHYPAR_ENABLE_QUALITY_FEATURES=On/Off # enables/disables our quality configurations
 -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=On/Off # enables/disables our highest-quality configuration
 -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=On/Off # enables/distables large k partitioning features
 -DKAHYPAR_ENABLE_SOED_METRIC=On/Off # enables/disables sum-of-external-degrees metric

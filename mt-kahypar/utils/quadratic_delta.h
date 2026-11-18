@@ -2,60 +2,37 @@
 
 #include "../macros.h"
 
+#include <utility>
+
+template <typename T, std::size_t... pack>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+T pow_impl(T value, std::index_sequence<pack...>) {
+	if constexpr (sizeof...(pack) == 0) {
+		return T{1};
+	} else {
+		return (((void)pack, value) * ...);
+	}
+}
+
+
+template <std::size_t exponent, typename T>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+T pow(T value) {
+	return pow_impl(value, std::make_index_sequence<exponent>());
+}
+
 template <int P>
-struct quadratic_delta_t;
-
-template <>
-struct quadratic_delta_t<0> {
-	template <typename F>
-	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F, F) {
-		return 0;
-	}
-};
-
-template <>
-struct quadratic_delta_t<1> {
-	template <typename F>
-	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F, F delta) {
-		return delta;
-	}
-};
-
-template <>
-struct quadratic_delta_t<2> {
+struct quadratic_delta_t {
 	template <typename F>
 	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 	static F compute(F a, F delta) {
-		return (2 * a + delta) * delta;
-	}
-};
-
-template <>
-struct quadratic_delta_t<3> {
-	template <typename F>
-	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F a, F delta) {
-		return a * (3 * a * delta + 3 * delta * delta) + delta * delta * delta;
-	}
-};
-
-template <>
-struct quadratic_delta_t<4> {
-	template <typename F>
-	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F a, F delta) {
-		return a * (a * (4 * a * delta + 6 * delta * delta) + 4 * delta * delta * delta) + delta * delta * delta * delta;
-	}
-};
-
-template <>
-struct quadratic_delta_t<5> {
-	template <typename F>
-	MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-	static F compute(F a, F delta) {
-		return a * (a * (a * (5 * a * delta + 10 * delta * delta) + 10 * delta * delta * delta) + 5 * delta * delta * delta * delta) + delta * delta * delta * delta * delta;
+		if constexpr (P == 0) {
+			return 0;
+		} else if constexpr (P == 1) {
+			return delta;
+		} else {
+			return quadratic_delta_t<P - 1>::compute(a, delta) * a + delta * pow<P - 1>(a + delta);
+		}
 	}
 };
 
@@ -63,5 +40,5 @@ struct quadratic_delta_t<5> {
 template <typename F>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 static F quadratic_delta(F a, F delta) {
-	return quadratic_delta_t<2>::compute(a, delta);
+	return quadratic_delta_t<MT_KAHYPAR_LX_NORM>::compute(a, delta);
 }
