@@ -55,8 +55,8 @@ using HyperedgeID = uint32_t;
 // louvain graph
 using NodeID = uint32_t;
 #endif
-using HypernodeWeight = double;
-using HyperedgeWeight = double;
+using HypernodeWeight = int64_t;
+using HyperedgeWeight = int64_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
