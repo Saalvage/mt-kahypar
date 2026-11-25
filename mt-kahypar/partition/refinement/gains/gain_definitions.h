@@ -49,12 +49,14 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
 #endif
-#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/l2/l2_rollback.h"
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_rollback.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
@@ -109,10 +111,10 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 struct BottleneckGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = BottleneckGainComputation;
   using AttributedGains = BottleneckAttributedGains;
-  using GainCache = CutGainCache;
-  using DeltaGainCache = DeltaCutGainCache;
-  using Rollback = CutRollback;
-  using FlowNetworkConstruction = CutFlowNetworkConstruction;
+  using GainCache = BottleneckGainCache;
+  using DeltaGainCache = DeltaBottleneckGainCache;
+  using Rollback = BottleneckRollback;
+  using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
 
 struct L2GainTypes : public kahypar::meta::PolicyBase {

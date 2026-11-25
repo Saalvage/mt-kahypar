@@ -40,6 +40,9 @@ set(SoedSources
 set(CutSources
         gains/cut/cut_gain_cache.cpp)
 
+set(BottleneckSources
+        gains/bottleneck/bottleneck_gain_cache.cpp)
+
 set(L2Sources
         gains/l2/l2_gain_cache.cpp)
 
@@ -57,6 +60,7 @@ set(SteinerTreeGraphSources
 target_sources(MtKaHyPar-Sources INTERFACE ${RefinementSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${Km1Sources})
 target_sources(MtKaHyPar-Sources INTERFACE ${CutSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${BottleneckSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${L2Sources})
 
 if (KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)

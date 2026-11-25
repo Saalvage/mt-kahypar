@@ -1,0 +1,219 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * This file is part of Mt-KaHyPar.
+ *
+ * Copyright (C) 2023 Tobias Heuer <tobias.heuer@kit.edu>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ ******************************************************************************/
+
+#include "mt-kahypar/partition/refinement/gains/bottleneck/bottleneck_gain_cache.h"
+
+#include <tbb/parallel_for.h>
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/concurrent_vector.h>
+
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/utils/quadratic_delta.h"
+
+namespace mt_kahypar {
+
+template<typename PartitionedHypergraph>
+void BottleneckGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
+  ASSERT(!_is_initialized, "Gain cache is already initialized");
+  ASSERT(_k <= 0 || _k >= partitioned_hg.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_hg.k()));
+  allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.k());
+
+  if constexpr (requires { partitioned_hg.partSumCutEdgeWeights(); }) {
+    _edge_weight_sum_per_partition = &partitioned_hg.partSumCutEdgeWeights();
+  }
+
+  // TODO: Optimize.
+  _is_initialized = true;
+  recomputeAll(partitioned_hg);
+}
+
+template<typename PartitionedHypergraph>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+void BottleneckGainCache::recomputeAll(const PartitionedHypergraph& partitioned_hg) {
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), partitioned_hg.initialNumNodes()),
+        [&](tbb::blocked_range<HypernodeID>& r) {
+            for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+                if (partitioned_hg.nodeIsEnabled(u)) {
+                    _gain_cache[penalty_index(u)].store(recomputePenaltyWeight(partitioned_hg, u), std::memory_order_relaxed);
+                    for (PartitionID to = 0; to < _k; ++to) {
+                        _gain_cache[benefit_index(u, to)].store(recomputeBenefitWeight(partitioned_hg, u, to), std::memory_order_relaxed);
+                    }
+                }
+            }
+        });
+}
+
+bool BottleneckGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
+    return sync_update.pin_count_in_from_part_after == 0 ||
+        sync_update.pin_count_in_from_part_after == 1 ||
+        sync_update.pin_count_in_to_part_after == 1 ||
+        sync_update.pin_count_in_to_part_after == 2 ||
+        sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1 ||
+        sync_update.pin_count_in_from_part_after == sync_update.edge_size - 2 ||
+        sync_update.pin_count_in_to_part_after == sync_update.edge_size ||
+        sync_update.pin_count_in_to_part_after == sync_update.edge_size - 1;
+}
+
+
+template<typename PartitionedHypergraph>
+void BottleneckGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
+                                   const SynchronizedEdgeUpdate& sync_update) {
+    ASSERT(_is_initialized, "Gain cache is not initialized");
+    ASSERT(sync_update.moved_node != kInvalidHypernode);
+
+    const HypernodeID edge_size = sync_update.edge_size;
+    if (edge_size == 1) {
+        return;
+    }
+
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
+
+    if (pin_count_in_from_part_after == 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, from));
+            if (partitioned_hg.partID(u) == from) {
+                _gain_cache[penalty_index(u)].fetch_sub(edge_weight, std::memory_order_relaxed);
+            }
+        }
+    } else if (pin_count_in_from_part_after == 0) {
+        _gain_cache[penalty_index(sync_update.moved_node)].fetch_add(edge_weight, std::memory_order_relaxed);
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, from));
+            _gain_cache[benefit_index(u, from)].fetch_add(edge_weight, std::memory_order_relaxed);
+        }
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+        _gain_cache[penalty_index(sync_update.moved_node)].fetch_sub(edge_weight, std::memory_order_relaxed);
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, to));
+            _gain_cache[benefit_index(u, to)].fetch_sub(edge_weight, std::memory_order_relaxed);
+        }
+    } else if (pin_count_in_to_part_after == 2) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, to));
+            if (partitioned_hg.partID(u) == to && u != sync_update.moved_node) {
+                _gain_cache[penalty_index(u)].fetch_add(edge_weight, std::memory_order_relaxed);
+            }
+        }
+    }
+
+    if (pin_count_in_from_part_after == edge_size - 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, from));
+            _gain_cache[penalty_index(u)].fetch_sub(edge_weight, std::memory_order_relaxed);
+            _gain_cache[benefit_index(u, from)].fetch_sub(edge_weight, std::memory_order_relaxed);
+        }
+    } else if (pin_count_in_from_part_after == edge_size - 2) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, from));
+            _gain_cache[benefit_index(u, from)].fetch_add(edge_weight, std::memory_order_relaxed);
+        }
+    }
+
+    if (pin_count_in_to_part_after == edge_size) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, to));
+            _gain_cache[penalty_index(u)].fetch_add(edge_weight, std::memory_order_relaxed);
+            _gain_cache[benefit_index(u, to)].fetch_add(edge_weight, std::memory_order_relaxed);
+        }
+    } else if (pin_count_in_to_part_after == edge_size - 1) {
+        for (const HypernodeID& u : partitioned_hg.pins(he)) {
+            ASSERT(nodeGainAssertions(u, to));
+            _gain_cache[benefit_index(u, to)].fetch_sub(edge_weight, std::memory_order_relaxed);
+        }
+    }
+}
+
+template<typename PartitionedHypergraph>
+void BottleneckGainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph& partitioned_hg,
+                                                const HypernodeID u,
+                                                const HypernodeID v,
+                                                const HyperedgeID he,
+                                                const HypernodeID pin_count_in_part_after) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)v;
+  (void)he;
+  (void)pin_count_in_part_after;
+  throw 2;
+}
+
+template<typename PartitionedHypergraph>
+void BottleneckGainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph& partitioned_hg,
+                                                    const HypernodeID u,
+                                                    const HypernodeID v,
+                                                    const HyperedgeID he) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)v;
+  (void)he;
+  throw 2;
+}
+
+template<typename PartitionedHypergraph>
+void BottleneckGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                                   const HypernodeID u,
+                                                   vec<Gain>& benefit_aggregator) {
+  (void)partitioned_hg;
+  (void)u;
+  (void)benefit_aggregator;
+  throw 2;
+}
+
+
+namespace {
+#define BOTTLENECK_INITIALIZE_GAIN_CACHE(X) void BottleneckGainCache::initializeGainCache(const X&)
+#define BOTTLENECK_DELTA_GAIN_UPDATE(X) void BottleneckGainCache::deltaGainUpdate(const X&,                     \
+                                                                    const SynchronizedEdgeUpdate&)
+#define BOTTLENECK_RESTORE_UPDATE(X) void BottleneckGainCache::uncontractUpdateAfterRestore(const X&,          \
+                                                                              const HypernodeID, \
+                                                                              const HypernodeID, \
+                                                                              const HyperedgeID, \
+                                                                              const HypernodeID)
+#define BOTTLENECK_REPLACEMENT_UPDATE(X) void BottleneckGainCache::uncontractUpdateAfterReplacement(const X&,            \
+                                                                                      const HypernodeID,   \
+                                                                                      const HypernodeID,   \
+                                                                                      const HyperedgeID)
+#define BOTTLENECK_INIT_GAIN_CACHE_ENTRY(X) void BottleneckGainCache::initializeGainCacheEntryForNode(const X&,           \
+                                                                                        const HypernodeID,  \
+                                                                                        vec<Gain>&)
+}
+
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(BOTTLENECK_INITIALIZE_GAIN_CACHE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(BOTTLENECK_DELTA_GAIN_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(BOTTLENECK_RESTORE_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(BOTTLENECK_REPLACEMENT_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(BOTTLENECK_INIT_GAIN_CACHE_ENTRY)
+
+}  // namespace mt_kahypar
