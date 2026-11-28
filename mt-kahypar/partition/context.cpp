@@ -58,6 +58,13 @@ namespace mt_kahypar {
     if ( params.preset_type != PresetType::UNDEFINED ) {
       str << "  Preset:                             " << params.preset_type << std::endl;
     }
+    str << "  Uses float weights:                 ";
+#ifdef KAHYPAR_USE_FLOAT_WEIGHTS
+    str << "true";
+#else
+    str << "false";
+#endif
+    str << std::endl;
     if ( verbose ) {
       str << "  Mode:                               " << params.mode << std::endl;
       str << "  Gain Policy:                        " << params.gain_policy << std::endl;
